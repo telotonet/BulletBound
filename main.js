@@ -50,6 +50,9 @@ class BaseDebugger {
         }
         return classCount;
     }
+    static getObjectsByType(type) {
+        return BaseDebugger.objects.filter(obj => obj instanceof type);
+    }
 }
 
 class GameObject extends BaseDebugger {
@@ -79,22 +82,37 @@ class GameObject extends BaseDebugger {
 class Collider {
     constructor(owner, x, y, width, height) {
         this.owner = owner;
+        this.x = x;
+        this.y = y;
         this.width = width;
         this.height = height;
         colliders.push(this);
     }
 
-    get left() {
-        return this.owner.x - this.width / 2;
+    get left()   { return this.owner.x - this.width / 2 }
+    get right()  { return this.owner.x + this.width / 2 }
+    get top()    { return this.owner.y - this.height/ 2 }
+    get bottom() { return this.owner.y + this.height/ 2 }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.owner.x - camera.x, this.owner.y - camera.y);
+        // ctx.rotate(this.owner.angle);
+        ctx.strokeStyle = 'rgb(13, 207, 0)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        ctx.beginPath();
+        ctx.moveTo(-this.width / 2, -this.height / 2);
+        ctx.lineTo(this.width / 2, this.height / 2);
+        ctx.moveTo(this.width / 2, -this.height / 2);
+        ctx.lineTo(-this.width / 2, this.height / 2);
+        ctx.stroke();
+        ctx.restore();
     }
-    get right() {
-        return this.owner.x + this.width / 2;
-    }
-    get top() {
-        return this.owner.y - this.height / 2;
-    }
-    get bottom() {
-        return this.owner.y + this.height / 2;
+
+    update() {
+        this.x = this.owner.x
+        this.y = this.owner.y
     }
 
     isCollidingWith(otherCollider) {
@@ -107,31 +125,14 @@ class Collider {
     }
 
     handleCollision(otherCollider) {
-        this.collisionHandler.handleCollision(this, otherCollider);
+        this.owner.handleCollision(otherCollider.owner);
     }
 
-    update() {
-        // Позиция коллайдера теперь определяется только центром владельца
-    }
-
-    draw(ctx) {
-        ctx.strokeStyle = 'rgb(13, 207, 0)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(this.left - camera.x, this.top - camera.y, this.width, this.height);
-
-        // Рисуем перекрестие
-        ctx.beginPath();
-        ctx.moveTo(this.left - camera.x, this.top - camera.y);
-        ctx.lineTo(this.right - camera.x, this.bottom - camera.y);
-        ctx.moveTo(this.right - camera.x, this.top - camera.y);
-        ctx.lineTo(this.left - camera.x, this.bottom - camera.y);
-        ctx.stroke();
-    }
-}
-
-class CollisionHandler {
-    handleCollision(collider, otherCollider) {
-        throw new Error("handleCollision method not implemented");
+    destroy(){
+        const index = colliders.indexOf(this);
+        if (index !== -1) {
+            colliders.splice(index, 1);
+        }
     }
 }
 
@@ -290,14 +291,19 @@ class Player extends Entity {
 
 class Wall extends GameObject {
     constructor(x, y, width, height) {
-        super(x, y, Math.max(width, height)); // Используем размер для GameObject, чтобы Collider работал корректно
+        super(x, y, Math.max(width, height));
         this.width = width;
         this.height = height;
     }
-
     draw(ctx) {
         ctx.fillStyle = 'black';
         ctx.fillRect(this.DrawX - this.width / 2, this.DrawY - this.height / 2, this.width, this.height);
+    }
+    handleCollision(other) {
+        other.onCollisionWithWall(this);
+    }
+    onCollisionWithProjectile(projectile){
+        projectile.onCollisionWithWall(this)
     }
 }
 
@@ -391,7 +397,7 @@ class RangedWeapon extends Weapon {
 
 
 class Projectile extends GameObject {
-    constructor(x, y, speed, angle, size, damage, color = 'violet', slowdownFactor = 1, minSpeed = 0.1) {
+    constructor(x, y, speed, angle, size, damage, color = 'violet') {
         super(x, y, size);
         this.visualEffects = new VisualEffectStorage();
         this.speed = speed;
@@ -400,12 +406,10 @@ class Projectile extends GameObject {
         this.dy = Math.sin(this.angle) * this.speed;
         this.damage = damage;
         this.color = color;
-        this.slowdownFactor = slowdownFactor;
-        this.minSpeed = minSpeed;
         projectiles.push(this);
     }
 
-    draw(ctx, camera) {
+    draw(ctx) {
         this.visualEffects.drawEffects();
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -414,26 +418,44 @@ class Projectile extends GameObject {
     }
 
     update() {
-        this.dx *= this.slowdownFactor;
-        this.dy *= this.slowdownFactor;
-
-        const speedSquared = this.dx * this.dx + this.dy * this.dy;
-        if (speedSquared / 100 < this.minSpeed * this.minSpeed) {
-            this.destroy();
-        }
-
         this.x += this.dx;
         this.y += this.dy;
         this.visualEffects.updateEffects();
+        this.checkCollisions()
+    }
+
+    checkCollisions() {
+        for (const obj of GameObject.objects) {
+            if (obj !== this && this.collider.isCollidingWith(obj.collider)) {
+                this.collider.handleCollision(obj.collider);
+            }
+        }
+    }
+
+    handleCollision(other) {
+        other.onCollisionWithProjectile(this);
+    }
+    onCollisionWithProjectile(other){
+        console.log('proj')
+    }
+    onCollisionWithWall(wall) {
+        this.destroy(); // Снаряд уничтожается при столкновении со стеной
+    }
+
+    onCollisionWithEntity(entity) {
+        entity.health.change(-this.damage);
+        this.destroy(); // Снаряд уничтожается при столкновении с сущностью
     }
 
     destroy() {
         super.destroy();
+        this.collider.destroy()
         const index = projectiles.indexOf(this);
         if (index !== -1) {
             projectiles.splice(index, 1);
         }
     }
+
 }
 
 
@@ -758,7 +780,7 @@ const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 
 const gameMap = new GameMap(1300, 1300)
 
-const weapon = new RangedWeapon('Bow', 10, 13, 100, Projectile, 5)
+const weapon = new RangedWeapon('Bow', 10, 13, 150, Projectile, 5)
 const enemyWeapon = new RangedWeapon('Bow', -10, 10, 300, Projectile, 5)
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, weapon);
