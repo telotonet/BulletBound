@@ -1,34 +1,3 @@
-class HealthBar {
-    constructor(entity, maxWidth, height, distance, healthColor, emptyColor='gray') {
-        this.entity = entity;
-        this.maxWidth = maxWidth;
-        this.height = height;
-        this.distance = distance; // between entity and healthbar
-        this.healthColor = healthColor;
-        this.emptyColor = emptyColor;
-    }
-
-    draw(ctx, camera) {
-        // Healthbar position
-        const xPos = this.entity.x - this.maxWidth / 2 - camera.x;
-        const yPos = this.entity.y - this.entity.size / 2 - this.distance - this.height - camera.y;
-
-        // Draw healthbar border
-        ctx.strokeStyle = this.emptyColor;
-        ctx.strokeRect(xPos, yPos, this.maxWidth, this.height);
-
-        // Current health width
-        const currentWidth = (this.entity.health.health / this.entity.health.maxHealth) * this.maxWidth;
-        ctx.fillStyle = this.healthColor;
-        ctx.fillRect(xPos, yPos, currentWidth, this.height);
-
-        // Empty color width
-        ctx.fillStyle = this.emptyColor;
-        ctx.fillRect(xPos + currentWidth, yPos, this.maxWidth - currentWidth, this.height);
-    }
-}
-
-
 class Health {
     constructor(entity, maxHealth) {
         this.entity = entity
@@ -38,28 +7,14 @@ class Health {
 
     change(amount, percent = false, base) {
         if (percent) {
-            // Change health by a certain percent of ...
             if (!base) {
-                // ... max health, if there is no base
                 base = this.maxHealth
             } 
-            // ... base, f.e {player.health} or something else
             const changeAmount = (base * amount) / 100;
             this.health += changeAmount;
         } else {
-            // Change health by a certain amount
             this.health += amount;
         }
-
-        // Check for exceeding maximum and minimum health
-        if (this.health > this.maxHealth) {
-            this.health = this.maxHealth;
-        } else if (this.health <= 0) {
-            this.health = 0;
-            this.entity.die()
-        }
-
-        // Add healing or damaging effect 
         if (amount < 0) {
             const damageEffect = new DamageNumberEffect(this.entity, 30, amount, 1000, 'black');
             this.entity.visualEffects.addEffect(damageEffect);
@@ -67,62 +22,79 @@ class Health {
             const healingEffect = new HealingEffect(this.entity, 10, 2000, amount);
             this.entity.visualEffects.addEffect(healingEffect);
         }
+        if (this.health > this.maxHealth) {
+            this.health = this.maxHealth;
+        } else if (this.health <= 0) {
+            this.health = 0;
+            this.entity.die()
+        }
+
     }
 }
 
 
+class BaseDebugger {
+    constructor() {
+        BaseDebugger.objects.push(this);
+    }
+    static objects = []; // Debugging counter
+    static getObjectClassCount() {
+        const classCount = {};
+        for (const obj of BaseDebugger.objects) {
+            const className = obj.constructor.name;
+            if (!classCount[className]) {
+                classCount[className] = 1;
+            } else {
+                classCount[className]++;
+            }
+        }
+        return classCount;
+    }
+}
 
-class GameObject{
-     /* Base class for all objects
-    Game objects must have X and Y coordinates
-    in order to be drawn on the camera
-    F.e Player/VisualEffects/Walls etc */
-    static count = 0; // Debugging counter
+class GameObject extends BaseDebugger {
     constructor(x, y, size) {
+        super();
         this.x = x;
         this.y = y;
         this.size = size;
-        GameObject.count++
-
+        this.collider = new Collider(this, x, y, size, size);
     }
-    get DrawX(){
-        // X-coord relative to camera X
-        return this.x - camera.x
-    }
-    get DrawY(){
-        // Y-coord relative to camera Y
-        return this.y - camera.y
+    get DrawX() {
+        return this.x - camera.x;
     }
 
-    destroy(){
-        GameObject.count--
+    get DrawY() {
+        return this.y - camera.y;
+    }
+
+    destroy() {
+        let index = BaseDebugger.objects.indexOf(this);
+        if (index > -1) {
+            BaseDebugger.objects.splice(index, 1);
+        }
     }
 }
-
 
 class Collider {
     constructor(owner, x, y, width, height) {
         this.owner = owner;
-        this.x = x;
-        this.y = y;
         this.width = width;
         this.height = height;
+        colliders.push(this);
     }
 
     get left() {
-        return this.x;
+        return this.owner.x - this.width / 2;
     }
-
     get right() {
-        return this.x + this.width;
+        return this.owner.x + this.width / 2;
     }
-
     get top() {
-        return this.y;
+        return this.owner.y - this.height / 2;
     }
-
     get bottom() {
-        return this.y + this.height;
+        return this.owner.y + this.height / 2;
     }
 
     isCollidingWith(otherCollider) {
@@ -133,9 +105,35 @@ class Collider {
             this.top < otherCollider.bottom
         );
     }
+
+    handleCollision(otherCollider) {
+        this.collisionHandler.handleCollision(this, otherCollider);
+    }
+
+    update() {
+        // Позиция коллайдера теперь определяется только центром владельца
+    }
+
+    draw(ctx) {
+        ctx.strokeStyle = 'rgb(13, 207, 0)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.left - camera.x, this.top - camera.y, this.width, this.height);
+
+        // Рисуем перекрестие
+        ctx.beginPath();
+        ctx.moveTo(this.left - camera.x, this.top - camera.y);
+        ctx.lineTo(this.right - camera.x, this.bottom - camera.y);
+        ctx.moveTo(this.right - camera.x, this.top - camera.y);
+        ctx.lineTo(this.left - camera.x, this.bottom - camera.y);
+        ctx.stroke();
+    }
 }
 
-
+class CollisionHandler {
+    handleCollision(collider, otherCollider) {
+        throw new Error("handleCollision method not implemented");
+    }
+}
 
 
 
@@ -152,28 +150,23 @@ class Collider {
 
 
 class Entity extends GameObject {
-    // Base class for any living entity
-    // that has HP and can be killed
     constructor(x, y, angle, size, speed, health, weapon) {
-        super(x, y, size)
+        super(x, y, size);
         this.speed = speed;
         this.dx = 0;
         this.dy = 0;
         this.angle = angle * Math.PI / 180;
         this.weapon = weapon;
         this.health = new Health(this, health);
-        this.healthBar = new HealthBar(this, 50, 7, 7, 'lightred');
-
-        this.visualEffects = new VisualEffectStorage(); 
+        this.visualEffects = new VisualEffectStorage();
     }
 
     draw(ctx, camera) {
         ctx.fillStyle = 'red';
-        const x = this.DrawX - this.size/2
-        const y = this.DrawY - this.size/2
-        ctx.fillRect(x, y, this.size, this.size);
+        const x = this.DrawX;
+        const y = this.DrawY;
+        ctx.fillRect(x - this.size / 2, y - this.size / 2, this.size, this.size);
         this.visualEffects.drawEffects();
-        this.healthBar.draw(ctx, camera)
     }
 
     update() {
@@ -181,103 +174,39 @@ class Entity extends GameObject {
         this.visualEffects.updateEffects();
     }
 
-    destroy(){
-        super.destroy()
+    destroy() {
+        super.destroy();
         const index = entities.indexOf(this);
         if (index !== -1) {
-            entities.splice(index, 1); 
+            entities.splice(index, 1);
         }
     }
+
     move() {
-        const newX = this.x + this.dx;
-        const newY = this.y + this.dy;
-
-        // Проверяем столкновение
-        if (!this.checkWallCollision(newX, newY, levelGrid, tileSize)) {
-            this.x = newX;
-            this.y = newY;
-        }
+        this.x += this.dx;
+        this.y += this.dy;
     }
 
-    attack(){
-        this.weapon.attack(this.x, this.y, this.angle, this.size)
-    } 
+    attack() {
+        this.weapon.attack(this.x, this.y, this.angle, this.size);
+    }
 
-    die(){
-        const deathEffect = new DeathEffect(gameMap, 10, 400, this.x, this.y);
-        gameMap.visualEffects.addEffect(deathEffect);
+    die() {
+        this.visualEffects.clearEffects();
         this.destroy();
         this.weapon.destroy();
     }
-
-    checkWallCollision(newX, newY, levelGrid, tileSize) {
-        const col = Math.floor(newX / tileSize);
-        const row = Math.floor(newY / tileSize);
-        return levelGrid[row] && levelGrid[row][col] === 1;
-    }
-    
-    checkBoundaries(gameMap) {
-        if (this.x < this.size / 2) {
-            this.x = this.size / 2;
-        } else if (this.x > gameMap.width - this.size / 2) {
-            this.x = gameMap.width - this.size / 2;
-        }
-
-        if (this.y < this.size / 2) {
-            this.y = this.size / 2;
-        } else if (this.y > gameMap.height - this.size / 2) {
-            this.y = gameMap.height - this.size / 2;
-        }
-    }
-
-    // handleCollision(gameObj) {
-    //     const entityLeft = this.x - this.size / 2;
-    //     const entityRight = this.x + this.size / 2;
-    //     const entityTop = this.y - this.size / 2;
-    //     const entityBottom = this.y + this.size / 2;
-    
-    //     const objLeft = gameObj.x;
-    //     const objRight = gameObj.x + gameObj.width;
-    //     const objTop = gameObj.y;
-    //     const objBottom = gameObj.y + gameObj.height;
-    
-    //     const dxLeft = entityLeft - objRight;
-    //     const dxRight = objLeft - entityRight;
-    //     const dyTop = entityTop - objBottom;
-    //     const dyBottom = objTop - entityBottom;
-    
-    //     const minDx = Math.min(Math.abs(dxLeft), Math.abs(dxRight));
-    //     const minDy = Math.min(Math.abs(dyTop), Math.abs(dyBottom));
-    
-    //     if (minDx < minDy) {
-    //         if (Math.abs(dxLeft) < Math.abs(dxRight)) {
-    //             this.x -= dxLeft;
-    //         } else {
-    //             this.x += dxRight;
-    //         }
-    //         this.dx = 0;
-    //     } else {
-    //         if (Math.abs(dyTop) < Math.abs(dyBottom)) {
-    //             this.y -= dyTop;
-    //         } else {
-    //             this.y += dyBottom;
-    //         }
-    //         this.dy = 0;
-    //     }
-    // }
 }
 
 class Player extends Entity {
     constructor(x, y, angle, size, speed, health, weapon) {
         super(x, y, angle, size, speed, health, weapon);
-        this.healthBar = new HealthBar(this, 50, 7, 7, 'lightgreen');
         this.mouseX = x;
         this.mouseY = y;
         this.keysPressed = {};
         this.initControls();
     }
-
-    draw(ctx, camera) {
+    draw(ctx) {
         // Рисуем игрока, учитывая его поворот
         ctx.save(); // Сохраняем текущее состояние контекста
 
@@ -287,27 +216,20 @@ class Player extends Entity {
         ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size); // Рисуем игрока относительно его центра
         ctx.restore(); // Восстанавливаем исходное состояние контекста
         this.visualEffects.drawEffects();
-        this.healthBar.draw(ctx, camera);
 
     }
-
     update() {
         this.handleInput();
-        this.move();
-        this.visualEffects.updateEffects();
-        this.checkBoundaries(gameMap);
+        super.update();
     }
 
     initControls() {
-        // Keyboard controls on down and up keys
         document.addEventListener('keydown', (event) => {
             this.keysPressed[event.key.toLowerCase()] = true;
         });
-
         document.addEventListener('keyup', (event) => {
             this.keysPressed[event.key.toLowerCase()] = false;
         });
-        // Mouse controls
         canvas.addEventListener('mousemove', (event) => {
             this.mouseX = event.clientX + camera.x - canvas.getBoundingClientRect().left;
             this.mouseY = event.clientY + camera.y - canvas.getBoundingClientRect().top;
@@ -319,9 +241,6 @@ class Player extends Entity {
         const speed = this.speed * Math.sqrt(2) / 2;
         this.dx = 0;
         this.dy = 0;
-
-        // Calculating an angle between player and cursor
-        
 
         if (this.keysPressed['w'] && !this.keysPressed['s']) {
             this.dy -= speed;
@@ -335,11 +254,10 @@ class Player extends Entity {
         if (this.keysPressed['d'] && !this.keysPressed['a']) {
             this.dx += speed;
         }
-        if(this.keysPressed['q']){ // q key for attack
+        if (this.keysPressed['q']) {
             this.attack();
         }
 
-        // Если зажаты клавиши движения по диагонали, уменьшаем скорость
         if ((this.keysPressed['w'] || this.keysPressed['s']) && (this.keysPressed['a'] || this.keysPressed['d'])) {
             this.dx /= Math.sqrt(2);
             this.dy /= Math.sqrt(2);
@@ -370,35 +288,16 @@ class Player extends Entity {
 
 
 
-
-class Wall extends GameObject{
+class Wall extends GameObject {
     constructor(x, y, width, height) {
-        super(x, y, width)
+        super(x, y, Math.max(width, height)); // Используем размер для GameObject, чтобы Collider работал корректно
         this.width = width;
         this.height = height;
-        this.left = this.x;
-        this.right = this.x + this.width;
-        this.top = this.y;
-        this.bottom = this.y + this.height;
     }
 
     draw(ctx) {
         ctx.fillStyle = 'black';
-        ctx.fillRect(this.DrawX, this.DrawY, this.width, this.height);
-    }
-
-    update() {
-        // if (this.isCollidingWithWall(gameObj)) {
-            // gameObj.handleCollision(this);
-        // }
-    }
-    isCollidingWithWall(gameObj) {
-        return (
-            gameObj.x - gameObj.size / 2 < this.x + this.width &&
-            gameObj.x + gameObj.size / 2 > this.x &&
-            gameObj.y - gameObj.size / 2 < this.y + this.height &&
-            gameObj.y + gameObj.size / 2 > this.y
-        );
+        ctx.fillRect(this.DrawX - this.width / 2, this.DrawY - this.height / 2, this.width, this.height);
     }
 }
 
@@ -442,8 +341,7 @@ class Weapon {
 
     attack() {
         if (this.canAttack()) {
-            this.lastAttackTime = Date.now(); // Update last attack time
-            // Implement attack logic here
+            this.lastAttackTime = Date.now();
             return true
         }
         return false
@@ -462,7 +360,6 @@ class RangedWeapon extends Weapon {
         } 
     }
     shoot(x, y, angle, entitySize) {
-        // Создаем снаряд с учетом вычисленных компонентов скорости и новых начальных координат
         const barrelEndX = x + Math.cos(angle) * (entitySize/2+10);
         const barrelEndY = y + Math.sin(angle) * (entitySize/2+10);
         const projectile = new this.projectileClass(
@@ -477,19 +374,6 @@ class RangedWeapon extends Weapon {
         return projectile;
     }
 }
-
-class MeleeWeapon extends Weapon {
-    constructor(name, damage, range) {
-        super(name, damage);
-        this.range = range;
-    }
-
-    attack(entity) {
-        // Implement melee attack logic here
-    }
-}
-
-
 
 
 
@@ -507,9 +391,9 @@ class MeleeWeapon extends Weapon {
 
 
 class Projectile extends GameObject {
-    constructor(x, y, speed, angle, size, damage, color='blue', slowdownFactor=1, minSpeed=0.1) {
+    constructor(x, y, speed, angle, size, damage, color = 'violet', slowdownFactor = 1, minSpeed = 0.1) {
         super(x, y, size);
-        this.visualEffects = new VisualEffectStorage(); 
+        this.visualEffects = new VisualEffectStorage();
         this.speed = speed;
         this.angle = angle;
         this.dx = Math.cos(this.angle) * this.speed;
@@ -525,7 +409,7 @@ class Projectile extends GameObject {
         this.visualEffects.drawEffects();
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.DrawX, this.DrawY, this.size, 0, Math.PI * 2);
+        ctx.arc(this.DrawX, this.DrawY, this.size / 2, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -533,15 +417,13 @@ class Projectile extends GameObject {
         this.dx *= this.slowdownFactor;
         this.dy *= this.slowdownFactor;
 
-        // Проверяем суммарную скорость вместо отдельных компонент
         const speedSquared = this.dx * this.dx + this.dy * this.dy;
-        if (speedSquared/100 < this.minSpeed * this.minSpeed) {
+        if (speedSquared / 100 < this.minSpeed * this.minSpeed) {
             this.destroy();
         }
 
         this.x += this.dx;
         this.y += this.dy;
-        this.checkCollisions();
         this.visualEffects.updateEffects();
     }
 
@@ -552,179 +434,40 @@ class Projectile extends GameObject {
             projectiles.splice(index, 1);
         }
     }
-
-    checkCollisions() {
-        this.checkGameMapCollision();
-        this.checkWallCollision(walls);
-        this.checkEntityCollisions();
-    }
-
-    isCollidingWithGameMap() {
-        return (
-            this.y > 0 &&
-            this.y < gameMap.height &&
-            this.x > 0 &&
-            this.x < gameMap.width
-        );
-    }
-
-    checkGameMapCollision() {
-        if (!this.isCollidingWithGameMap()) {
-            this.destroy();
-        }
-    }
-
-    checkWallCollision(walls) {
-        walls.forEach((wall) => {
-            if (this.isCollidingWithWall(wall)) {
-                this.destroy();
-            }
-        });
-    }
-
-    isCollidingWithWall(wall) {
-        const projectileLeft = this.x - this.size;
-        const projectileRight = this.x + this.size;
-        const projectileTop = this.y - this.size;
-        const projectileBottom = this.y + this.size;
-
-        return (
-            projectileRight > wall.left &&
-            projectileLeft < wall.right &&
-            projectileBottom > wall.top &&
-            projectileTop < wall.bottom
-        );
-    }
-
-    checkEntityCollisions() {
-        entities.forEach((entity) => {
-            if (this.isCollidingWithEntity(entity)) {
-                entity.health.change(-this.damage);
-                this.destroy();
-            }
-        });
-    }
-
-    isCollidingWithEntity(entity) {
-        const dx = entity.x - this.x;
-        const dy = entity.y - this.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance < entity.size / 2 + this.size;
-    }
 }
 
-class BouncingProjectile extends Projectile {
-    constructor(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed) {
-        super(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed);
-        this.startX = x;
-        this.startY = y;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Particle extends GameObject{
+    // Base class for any particles in visual effects
+    constructor(x, y, size, dx, dy, color){
+        super(x,y,size)
+        this.dx = dx
+        this.dy = dy
+        this.color = color
     }
-
-    handleCollision(normal) {
-        // Вектор скорости
-        let velocity = { x: this.dx, y: this.dy };
-        // Проекция скорости на нормаль
-        let dotProduct = velocity.x * normal.x + velocity.y * normal.y;
-        // Новая скорость с учетом отскока
-        this.dx = velocity.x - 2 * dotProduct * normal.x;
-        this.dy = velocity.y - 2 * dotProduct * normal.y;
+    draw(){
+        ctx.fillStyle = this.color
+        ctx.fillRect(this.DrawX, this.DrawY, this.size, this.size);
     }
-
-    checkWallCollision(walls) {
-        walls.forEach((wall) => {
-            let collisionDetected = false;
-            let collisionNormal = {x: 0, y: 0};
-
-            // Предсказанные координаты снаряда
-            const projectileNextX = this.x + this.dx;
-            const projectileNextY = this.y + this.dy;
-
-            // Края снаряда
-            const projectileLeft = projectileNextX;
-            const projectileRight = projectileNextX + this.size;
-            const projectileTop = projectileNextY;
-            const projectileBottom = projectileNextY + this.size;
-
-            // Горизонтальные коллизии
-            if (projectileRight > wall.left && projectileLeft < wall.right) {
-                if (projectileTop < wall.bottom && projectileBottom > wall.top) {
-                    if (this.dy > 0 && projectileBottom > wall.top && this.y - this.size <= wall.top) {
-                        collisionNormal = {x: 0, y: -1}; // Нормаль для верхней стенки
-                        collisionDetected = true;
-                    } else if (this.dy < 0 && projectileTop < wall.bottom && this.y + this.size >= wall.bottom) {
-                        collisionNormal = {x: 0, y: 1}; // Нормаль для нижней стенки
-                        collisionDetected = true;
-                    }
-                }
-            }
-
-            // Вертикальные коллизии
-            if (projectileBottom > wall.top && projectileTop < wall.bottom) {
-                if (projectileLeft < wall.right && projectileRight > wall.left) {
-                    if (this.dx > 0 && projectileRight > wall.left && this.x - this.size <= wall.left) {
-                        collisionNormal = {x: -1, y: 0}; // Нормаль для левой стенки
-                        collisionDetected = true;
-                    } else if (this.dx < 0 && projectileLeft < wall.right && this.x + this.size >= wall.right) {
-                        collisionNormal = {x: 1, y: 0}; // Нормаль для правой стенки
-                        collisionDetected = true;
-                    }
-                }
-            }
-
-            if (collisionDetected) {
-                this.handleCollision(collisionNormal);
-            }
-        });
-    }
-}
-
-class CircularProjectile extends Projectile {
-    constructor(x, y, speed, angle, size, damage, radius=55) {
-        super(x, y, speed, angle, size, damage);
-        this.radius = radius;
-        this.centerX = x; // Начальное положение по X
-        this.centerY = y; // Начальное положение по Y
-        this.time = angle; // Время для определения угла
-    }
-
     update() {
-        // Увеличиваем угол для движения по окружности
-        this.angle += this.speed;
-        // Пересчитываем координаты по новому углу
-        this.x = this.centerX + Math.cos(this.angle) * this.radius;
-        this.y = this.centerY + Math.sin(this.angle) * this.radius;
-        // Проверяем столкновения
-        this.checkCollisions();
-        this.visualEffects.updateEffects();
+        this.x += this.dx;
+        this.y += this.dy;
     }
 }
-
-class ExplosionProjectile extends BouncingProjectile {
-    constructor(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed) {
-        super(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed)
-        this.color = 'green'
-        this.slowdownFactor = 0.93
-        this.minSpeed = 0.25
-    }
-    
-    destroy(){
-        super.destroy()
-        const explosionEffect = new ExplosionEffect(gameMap, 15, 2000, 51, this.x, this.y);
-        gameMap.visualEffects.addEffect(explosionEffect)
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
 
 class VisualEffectStorage {
     constructor() {
@@ -755,36 +498,7 @@ class VisualEffectStorage {
     }
 
     clearEffects() {
-        this.effects = [];
-    }
-}
-
-class Particle extends GameObject{
-    // Base class for any particles in visual effects
-    constructor(x, y, size, dx, dy, color){
-        super(x,y,size)
-        this.dx = dx
-        this.dy = dy
-        this.color = color
-    }
-    draw(){
-        ctx.fillStyle = this.color
-        ctx.fillRect(this.DrawX, this.DrawY, this.size, this.size);
-    }
-    update() {
-        this.x += this.dx;
-        this.y += this.dy;
-    }
-}
-
-class ExplosionParticle extends BouncingProjectile {
-    constructor(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed){
-        super(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed)
-    }
-    draw(ctx, camera) {
-        this.visualEffects.drawEffects();
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.DrawX, this.DrawY, this.size, this.size);
+        this.getEffects().forEach(effect => effect.destroy());
     }
 }
 
@@ -795,7 +509,6 @@ class VisualEffect extends GameObject{
         this.duration = duration;
         this.elapsedTime = 0;
         this.startTime = performance.now();
-        this.active = true;
     }
 
     onCreate(){
@@ -806,19 +519,15 @@ class VisualEffect extends GameObject{
     }
 
     update() {
-        // Use super.update() before your implementation
-
-        // Update elapsedTime to check the duration
         this.elapsedTime = performance.now() - this.startTime;
-        // Kill this effect after the effect ends
         if (this.elapsedTime >= this.duration) {
             this.destroy()
         }
     }
 
     destroy() {
-        this.entity.visualEffects.removeEffect(this);
         super.destroy()
+        this.entity.visualEffects.removeEffect(this);
     }
 }
 
@@ -835,15 +544,11 @@ class DamageNumberEffect extends VisualEffect {
     onCreate(){
         const existingEffectIndex = this.entity.visualEffects.getEffects().findIndex(e => e instanceof DamageNumberEffect);
         if (existingEffectIndex !== -1) {
-            // Save value and delete previous effect
-            // related to this entity
-            // Create new effect with current damage + prev. damage
             const existingEffect = this.entity.visualEffects.getEffects()[existingEffectIndex];
+            existingEffect.destroy()
             this.value += existingEffect.value;
-            this.entity.visualEffects.removeEffect(existingEffect);
         }
     }
-
     draw(ctx, camera) {
         ctx.save();
         ctx.fillStyle = this.color;
@@ -852,133 +557,6 @@ class DamageNumberEffect extends VisualEffect {
         this.x = this.entity.x
         ctx.fillText(this.value.toFixed(1), this.DrawX, this.DrawY);
         ctx.restore();
-    }
-}
-
-class HealingEffect extends VisualEffect {
-    constructor(entity, size, duration, amount) {
-        super(entity, size, duration);
-        this.speed = 1;
-        this.color = 'green';
-        this._numParticles = amount;
-        this.particles = [];
-        this.timers = [];
-        this.x = this.entity.x;
-        this.y = this.entity.y;
-        this.minInterval = this.duration/3
-        this.generateParticles()
-    }
-
-    generateParticles() {
-        // Create particles (Game Object instance) around the entity
-        // An effect consist of many squares (this.numParticles)
-        // Each square disappears at random this.deletionTime
-        for (let i = 0; i < this.numParticles; i++) {
-
-            const x = this.x + (Math.random() * this.size * 2.5 - Math.random() * this.size * 2.5);
-            const y = this.y + (Math.random() * this.size * 2.5 - Math.random() * this.size * 2.5);
-            const size = Math.random() * 5;
-            const dx = 0;
-            const dy = Math.max(-0.3, Math.random() * -2);
-            const color = 'green'
-
-            const particle = new Particle(x, y, size, dx, dy, color);
-            this.particles.push(particle);
-
-            const deletionTime = Math.random() * (this.duration - this.minInterval) + this.minInterval;
-            const timer = setTimeout(() => {
-                this.removeParticle(particle);
-            }, deletionTime);
-            this.timers.push(timer);
-        }
-    }
-
-    set numParticles(amount) {
-        // Устанавливаем значение numParticles с учетом ограничений
-        if (amount > 15) {
-            this._numParticles = 15;
-        } else if (amount < 1) {
-            this._numParticles = 1;
-        } else {
-            this._numParticles = amount;
-        }
-    }
-
-    get numParticles() {
-        return this._numParticles;
-    }
-
-    removeParticle(particle) {
-        const index = this.particles.indexOf(particle);
-        if (index !== -1) {
-            this.particles.splice(index, 1);
-        }
-        particle.destroy()
-    }
-
-    draw(ctx, camera) {
-        renderer.draw(this.particles)
-    }
-
-    update() {
-        super.update();
-        updater.update(this.particles)
-    }
-
-    destroy() {
-        super.destroy();
-        this.timers.forEach(timer => clearTimeout(timer));
-    }
-}
-
-class ExplosionEffect extends VisualEffect {
-    constructor(entity, size, duration, amount, x, y) {
-        super(entity, size, duration, x, y);
-        this.numParticles = amount;
-        this.colors = ['yellow', 'orange', 'red', 'brown'];
-        this.chunkSize = this.numParticles/7;
-        this.generateParticles();
-        this.onCreate()
-    }
-    onCreate(){
-        gameMap.visualEffects.addEffect(new DeathEffect(gameMap, this.size, 120, this.x, this.y, ['white', 'yellow', 'orange', 'red', 'white']))
-    }
-
-    generateParticles() {
-        let particles = this.numParticles
-        const generateChunk = () => {
-            for (let i = 0; i < this.chunkSize && particles > 0; i++) {
-                const x = this.x + (Math.random() * this.size - this.size / 2);
-                const y = this.y + (Math.random() * this.size - this.size / 2);
-                const size = Math.max(5, Math.random() * 15);
-                const angle = Math.atan2(y - this.y, x - this.x);
-                const speed = Math.random() * 4;
-                const damage = (size / speed)*Math.random();
-                const color = this.colors[Math.floor(Math.random() * this.colors.length)];
-                const slowdownFactor = 0.92;
-                const minSpeed = 0.1;
-                new ExplosionParticle(x, y, speed, angle, size, damage, color, slowdownFactor, minSpeed);
-                particles--;
-            }
-            if (particles > 0) {
-                requestAnimationFrame(generateChunk)
-            }
-        };
-        requestAnimationFrame(generateChunk)
-    }
-
-    set numParticles(amount) {
-        if (amount > 55) {
-            this._numParticles = 55;
-        } else if (amount < 0) {
-            this._numParticles = 0;
-        } else {
-            this._numParticles = amount;
-        }
-    }
-
-    get numParticles() {
-        return this._numParticles;
     }
 }
 
@@ -1135,7 +713,6 @@ class Camera {
         const cameraRight = this.x + this.width;
         const cameraTop = this.y;
         const cameraBottom = this.y + this.height;
-
         objects.forEach(object => {
             // Проверяем, находится ли объект в зоне видимости камеры
             if (object.x + object.size > cameraLeft && object.x < cameraRight &&
@@ -1173,6 +750,7 @@ class Canvas {
 
 let projectiles = []; // Array to store projectiles
 let weapons = []
+let colliders = []
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -1180,20 +758,14 @@ const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 
 const gameMap = new GameMap(1300, 1300)
 
-const weapon = new RangedWeapon('Bow', 10, 13, 100, ExplosionProjectile, 5)
+const weapon = new RangedWeapon('Bow', 10, 13, 100, Projectile, 5)
 const enemyWeapon = new RangedWeapon('Bow', -10, 10, 300, Projectile, 5)
-const enemyWeapon2 = new RangedWeapon('Bow', 10, 0.1, 10, CircularProjectile, 5)
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, weapon);
 const camera = new Camera(ctx, gameMap, canvasObj, player, canvas.height, canvas.width)
 const enemy = new Entity(700, 400, 135, 30, 5, 100, enemyWeapon)
-const enemy3 = new Entity(730, 400, 135, 30, 5, 100, enemyWeapon)
-const enemy4 = new Entity(770, 400, 135, 30, 5, 100, enemyWeapon)
-const enemy5 = new Entity(750, 370, 135, 30, 5, 100, enemyWeapon)
 
-const enemy2 = new Entity(400, 400, 45, 30, 5, 100, enemyWeapon2)
-
-const entities = [player, enemy, enemy2, enemy3, enemy4, enemy5]
+const entities = [player, enemy]
 
 
 const updater = new Updater()
@@ -1249,7 +821,7 @@ const walls = loadLevel(levelGrid);
 
 
 
-
+let debug = true
 let fps = 0;
 let lastFpsUpdate = performance.now();
 let framesThisSecond = 0;
@@ -1268,7 +840,7 @@ function gameLoop() {
             framesThisSecond = 0;
         }
         document.getElementById('fps-info').textContent = 'FPS: ' + fps;
-        document.getElementById('object-count').textContent = 'Objects: ' + GameObject.count;
+        document.getElementById('object-count').textContent = `Objects: ` + JSON.stringify(BaseDebugger.getObjectClassCount(), null, 2);;
     }
 
     requestId = requestAnimationFrame(gameLoop);
@@ -1278,13 +850,18 @@ function updateAndDrawGame() {
     canvasObj.draw(ctx, camera);
     updater.update(entities);
     updater.update(projectiles);
-    updater.update(walls);
     updater.update([camera, gameMap]);
     updater.update([canvasObj]);
+    updater.update(colliders);
     gameMap.draw(ctx, camera);
     renderer.draw(projectiles);
     renderer.draw(walls);
     renderer.draw(entities);
+    if (debug){
+        colliders.forEach(collider => {
+            collider.draw(ctx)
+        });
+    }
 }
 
 function pauseGame() {
