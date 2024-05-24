@@ -796,10 +796,9 @@ class GameMap{
 
 
 class Camera {
-    constructor(ctx, gameMap, canvas, player, height, width) {
+    constructor(ctx, gameMap, player, height, width) {
         this.ctx = ctx;
         this.gameMap = gameMap;
-        this.canvas = canvas;
         this.height = height;
         this.width = width;
         this.player = player;
@@ -865,6 +864,28 @@ class Canvas {
     update() {
         this.visualEffects.updateEffects()
     }
+
+    checkWindowSize(){
+        const { scale, offsetX, offsetY } = getScaleAndOffsets();
+    
+        // Рисование черных полос, если необходимо
+        ctx.fillStyle = 'black';
+        if (offsetX > 0) {
+            ctx.fillRect(0, 0, offsetX, canvas.height); // Левая полоса
+            ctx.fillRect(canvas.width - offsetX, 0, offsetX, canvas.height); // Правая полоса
+        }
+        if (offsetY > 0) {
+            ctx.fillRect(0, 0, canvas.width, offsetY); // Верхняя полоса
+            ctx.fillRect(0, canvas.height - offsetY, canvas.width, offsetY); // Нижняя полоса
+        }
+    
+        // Сохранение состояния контекста
+        ctx.save();
+    
+        // Применение масштабирования и отступов
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+    }
 }
 
 
@@ -884,7 +905,8 @@ let weapons = []
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
-
+const BASE_WIDTH = 880;
+const BASE_HEIGHT = 600;
 const gameMap = new GameMap(1300, 1300)
 
 const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
@@ -894,7 +916,7 @@ const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProje
 const collisionManager = new CollisionManager();
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, playerWeapon);
-const camera = new Camera(ctx, gameMap, canvasObj, player, canvas.height, canvas.width)
+const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
 
 const enemy = new Entity(700, 400, 135, 30, 5, 100, enemyWeapon)
 
@@ -962,6 +984,18 @@ let framesThisSecond = 0;
 let requestId;
 let paused = false; // Флаг состояния паузы
 
+
+// Функция для вычисления коэффициента масштабирования с сохранением пропорций и отступов
+function getScaleAndOffsets() {
+    const scaleX = canvas.width / BASE_WIDTH;
+    const scaleY = canvas.height / BASE_HEIGHT;
+    const scale = Math.min(scaleX, scaleY);
+    
+    const offsetX = (canvas.width - BASE_WIDTH * scale) / 2;
+    const offsetY = (canvas.height - BASE_HEIGHT * scale) / 2;
+    
+    return { scale, offsetX, offsetY };
+}
 function gameLoop() {
     if (!paused) {
         updateAndDrawGame();
@@ -981,6 +1015,7 @@ function gameLoop() {
 }
 
 function updateAndDrawGame() {
+    // Отрисовка объектов с учетом масштабирования
     canvasObj.draw(ctx, camera);
     updater.update(entities);
     updater.update(projectiles);
@@ -988,15 +1023,18 @@ function updateAndDrawGame() {
     updater.update([canvasObj]);
     updater.update(walls);
     collisionManager.update();
+    canvasObj.checkWindowSize()
     gameMap.draw(ctx, camera);
     renderer.draw(projectiles);
     renderer.draw(walls);
     renderer.draw(entities);
-    if (debug){
+    if (debug) {
         collisionManager.getColliders().forEach(collider => {
-            collider.draw(ctx)
+            collider.draw(ctx);
         });
     }
+    // Восстановление исходного состояния контекста
+    ctx.restore();
 }
 
 function pauseGame() {
@@ -1023,4 +1061,14 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    camera.width = canvas.width;
+    camera.height = canvas.height;
+});
+
+// Запуск игры
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 gameLoop();
