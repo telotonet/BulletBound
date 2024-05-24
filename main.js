@@ -16,11 +16,8 @@ class Health {
             this.health += amount;
         }
         if (amount < 0) {
-            const damageEffect = new DamageNumberEffect(this.entity, 30, amount, 1000, 'black');
+            const damageEffect = new DamageNumberEffect(this.entity, 15, amount, 1000, 'black');
             this.entity.visualEffects.addEffect(damageEffect);
-        } else if (amount > 0) {
-            const healingEffect = new HealingEffect(this.entity, 10, 2000, amount);
-            this.entity.visualEffects.addEffect(healingEffect);
         }
         if (this.health > this.maxHealth) {
             this.health = this.maxHealth;
@@ -72,10 +69,16 @@ class GameObject extends BaseDebugger {
     }
 
     destroy() {
+        this.collider.destroy()
         let index = BaseDebugger.objects.indexOf(this);
         if (index > -1) {
             BaseDebugger.objects.splice(index, 1);
         }
+    }
+    handleCollision(otherCollider){
+        /* this method calls when this and any other collider touch each other
+        According to the Double Dispatch pattern, you must call the collision method of otherCollider with this.collider
+        */
     }
 }
 
@@ -86,7 +89,7 @@ class Collider {
         this.y = y;
         this.width = width;
         this.height = height;
-        colliders.push(this);
+        collisionManager.addCollider(this)
     }
 
     get left()   { return this.owner.x - this.width / 2 }
@@ -129,9 +132,52 @@ class Collider {
     }
 
     destroy(){
-        const index = colliders.indexOf(this);
-        if (index !== -1) {
-            colliders.splice(index, 1);
+        collisionManager.removeCollider(this)
+    }
+}
+
+class CollisionManager {
+    /* 
+    Double Dispatch is used in game colliders to handle interactions between game objects of different types more flexibly and conveniently. 
+    Instead of a single object determining the interaction logic, double dispatch involves both objects in the decision-making process. 
+    This allows for more dynamic handling of collisions. 
+    For example, a Player object colliding with an Enemy object can trigger different behavior than a Player object colliding with a Wall object. 
+    Each object involved in the collision can dictate its specific response, making the collision system more adaptable and easier to extend.
+    */
+    constructor() {
+        this.colliders = [];
+    }
+
+    addCollider(collider) {
+        this.colliders.push(collider);
+    }
+
+    removeCollider(collider) {
+        const index = this.colliders.indexOf(collider);
+        if (index > -1) {
+            this.colliders.splice(index, 1);
+        }
+    }
+    getColliders(){
+        return this.colliders
+    }
+
+    update() {
+        // Try-catch blocks for handling non-existent methods on game objects
+        for (let i = 0; i < this.colliders.length; i++) {
+            for (let j = i + 1; j < this.colliders.length; j++) {
+                const colliderA = this.colliders[i];
+                const colliderB = this.colliders[j];
+                if (colliderA.isCollidingWith(colliderB)) {
+                    try {
+                        colliderA.handleCollision(colliderB);
+                    } catch (error) {}
+                    try {
+                        colliderB.handleCollision(colliderA);
+                    } catch (error) {}
+
+                }
+            }
         }
     }
 }
@@ -175,6 +221,35 @@ class Entity extends GameObject {
         this.visualEffects.updateEffects();
     }
 
+    handleCollision(other){
+        other.onCollisionWithEntity(this)
+    }
+
+    onCollisionWithProjectile(projectile){
+        this.health.change(-projectile.damage)
+    }
+    onCollisionWithWall(wall) {
+        const overlapX = this.getOverlap(this.collider.left, this.collider.right, wall.collider.left, wall.collider.right);
+        const overlapY = this.getOverlap(this.collider.top, this.collider.bottom, wall.collider.top, wall.collider.bottom);
+
+        // Pushing out of the wall
+        if (Math.abs(overlapX) < Math.abs(overlapY)) {
+            this.x -= overlapX;
+            this.dx = 0;
+        } else {
+            this.y -= overlapY;
+            this.dy = 0;
+        }
+    }
+
+    getOverlap(minA, maxA, minB, maxB) {
+        return (minA < minB) ? maxA - minB : minA - maxB;
+    }
+
+    onCollisionWithEntity(entity){
+        this.onCollisionWithWall(entity)
+    }
+
     destroy() {
         super.destroy();
         const index = entities.indexOf(this);
@@ -194,6 +269,8 @@ class Entity extends GameObject {
 
     die() {
         this.visualEffects.clearEffects();
+        const deathEffect = new DeathEffect(gameMap, 32, 300, this.x, this.y)
+        gameMap.visualEffects.addEffect(deathEffect)
         this.destroy();
         this.weapon.destroy();
     }
@@ -294,16 +371,31 @@ class Wall extends GameObject {
         super(x, y, Math.max(width, height));
         this.width = width;
         this.height = height;
+        this.visualEffects = new VisualEffectStorage()
     }
     draw(ctx) {
         ctx.fillStyle = 'black';
         ctx.fillRect(this.DrawX - this.width / 2, this.DrawY - this.height / 2, this.width, this.height);
+        this.visualEffects.drawEffects()
+    }
+    update(){
+        this.visualEffects.updateEffects()
     }
     handleCollision(other) {
         other.onCollisionWithWall(this);
     }
     onCollisionWithProjectile(projectile){
-        projectile.onCollisionWithWall(this)
+    }
+    die(){
+        this.destroy()
+    }
+
+    destroy() {
+        super.destroy();
+        const index = walls.indexOf(this);
+        if (index !== -1) {
+            walls.splice(index, 1);
+        }
     }
 }
 
@@ -421,35 +513,27 @@ class Projectile extends GameObject {
         this.x += this.dx;
         this.y += this.dy;
         this.visualEffects.updateEffects();
-        this.checkCollisions()
     }
 
-    checkCollisions() {
-        for (const obj of GameObject.objects) {
-            if (obj !== this && this.collider.isCollidingWith(obj.collider)) {
-                this.collider.handleCollision(obj.collider);
-            }
-        }
-    }
 
     handleCollision(other) {
         other.onCollisionWithProjectile(this);
     }
+
+
     onCollisionWithProjectile(other){
         console.log('proj')
     }
     onCollisionWithWall(wall) {
-        this.destroy(); // Снаряд уничтожается при столкновении со стеной
+        this.destroy();
     }
 
     onCollisionWithEntity(entity) {
-        entity.health.change(-this.damage);
-        this.destroy(); // Снаряд уничтожается при столкновении с сущностью
+        this.destroy();
     }
 
     destroy() {
         super.destroy();
-        this.collider.destroy()
         const index = projectiles.indexOf(this);
         if (index !== -1) {
             projectiles.splice(index, 1);
@@ -554,12 +638,14 @@ class VisualEffect extends GameObject{
 }
 
 class DamageNumberEffect extends VisualEffect {
-    constructor(entity, size, value, duration, color, x, y) {
+    constructor(entity, size, value, duration, color, x, y, font= 'Cooper Black', fontSize=30) {
         super(entity, size, duration, x, y);
         this.value = value;
         this.y = this.entity.y;
         this.color = color;
         this.speed = 3; // Numbers Y movespeed
+        this.font = font
+        this.fontSize = fontSize
         this.onCreate()
     }
 
@@ -574,7 +660,7 @@ class DamageNumberEffect extends VisualEffect {
     draw(ctx, camera) {
         ctx.save();
         ctx.fillStyle = this.color;
-        ctx.font = `bold ${this.size}px Cooper Black`;
+        ctx.font = `bold ${this.fontSize}px ${this.font}`;
         this.y -= this.speed * (this.elapsedTime / this.duration);
         this.x = this.entity.x
         ctx.fillText(this.value.toFixed(1), this.DrawX, this.DrawY);
@@ -585,8 +671,8 @@ class DamageNumberEffect extends VisualEffect {
 class DeathEffect extends VisualEffect {
     constructor(entity, size, duration, x, y, colors=['blue', 'lightblue', 'yellow']) {
         super(entity, size, duration, x, y);
-        this.maxRadius = size * 4; 
-        this.minRadius = size; 
+        this.maxRadius = size; 
+        this.minRadius = size/4; 
         this.growthSpeed = 5;
         this.radius = 6;
         this.colors = colors; 
@@ -772,7 +858,6 @@ class Canvas {
 
 let projectiles = []; // Array to store projectiles
 let weapons = []
-let colliders = []
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -782,6 +867,8 @@ const gameMap = new GameMap(1300, 1300)
 
 const weapon = new RangedWeapon('Bow', 10, 13, 150, Projectile, 5)
 const enemyWeapon = new RangedWeapon('Bow', -10, 10, 300, Projectile, 5)
+
+const collisionManager = new CollisionManager();
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, weapon);
 const camera = new Camera(ctx, gameMap, canvasObj, player, canvas.height, canvas.width)
@@ -874,13 +961,14 @@ function updateAndDrawGame() {
     updater.update(projectiles);
     updater.update([camera, gameMap]);
     updater.update([canvasObj]);
-    updater.update(colliders);
+    updater.update(walls);
+    collisionManager.update();
     gameMap.draw(ctx, camera);
     renderer.draw(projectiles);
     renderer.draw(walls);
     renderer.draw(entities);
     if (debug){
-        colliders.forEach(collider => {
+        collisionManager.getColliders().forEach(collider => {
             collider.draw(ctx)
         });
     }
