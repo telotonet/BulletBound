@@ -29,7 +29,6 @@ class Health {
     }
 }
 
-
 class BaseDebugger {
     constructor() {
         BaseDebugger.objects.push(this);
@@ -204,6 +203,7 @@ class Entity extends GameObject {
         this.dy = 0;
         this.angle = angle * Math.PI / 180;
         this.weapon = weapon;
+        this.weapon.owner = this
         this.health = new Health(this, health);
         this.visualEffects = new VisualEffectStorage();
     }
@@ -226,6 +226,7 @@ class Entity extends GameObject {
     }
 
     onCollisionWithProjectile(projectile){
+        if (projectile.owner == this){return} 
         this.health.change(-projectile.damage)
     }
     onCollisionWithWall(wall) {
@@ -269,10 +270,10 @@ class Entity extends GameObject {
 
     die() {
         this.visualEffects.clearEffects();
+        this.weapon.destroy()
         const deathEffect = new DeathEffect(gameMap, 32, 300, this.x, this.y)
         gameMap.visualEffects.addEffect(deathEffect)
         this.destroy();
-        this.weapon.destroy();
     }
 }
 
@@ -335,6 +336,10 @@ class Player extends Entity {
         if (this.keysPressed['q']) {
             this.attack();
         }
+        if (this.keysPressed['shift']) {
+            this.dx *= 2
+            this.dy *= 2
+        }
 
         if ((this.keysPressed['w'] || this.keysPressed['s']) && (this.keysPressed['a'] || this.keysPressed['d'])) {
             this.dx /= Math.sqrt(2);
@@ -389,6 +394,8 @@ class Wall extends GameObject {
     die(){
         this.destroy()
     }
+    onCollisionWithWall(wall){
+    }
 
     destroy() {
         super.destroy();
@@ -411,68 +418,56 @@ class Wall extends GameObject {
 
 
 class Weapon {
-    constructor(name, damage, speed, cooldown, projectileClass) {
+    constructor(name, damage, speed, cooldown, createProjectile) {
+        this.owner;
         this.name = name;
         this.damage = damage;
         this.speed = speed;
         this.cooldown = cooldown;
-        this.projectileClass = projectileClass;
-        this.lastAttackTime = 0; 
+        this.createProjectile = createProjectile;
+        this.lastAttackTime = 0;
 
-        this.dps =  this.damage / (this.cooldown/1000)
-        weapons.push(this)
+        this.dps = this.damage / (this.cooldown / 1000);
+        weapons.push(this);
     }
 
-    destroy(){
+    destroy() {
         const index = weapons.indexOf(this);
         if (index !== -1) {
-            weapons.splice(index, 1); // Delete this weapon
+            weapons.splice(index, 1);
         }
     }
 
     canAttack() {
-        if (weapons.includes(this)){
-            const currentTime = Date.now();
-            return (currentTime - this.lastAttackTime) >= this.cooldown;
-        } return false
+        const currentTime = Date.now();
+        return (currentTime - this.lastAttackTime) >= this.cooldown;
     }
 
-    attack() {
+    attack(x, y, angle, entitySize) {
         if (this.canAttack()) {
             this.lastAttackTime = Date.now();
-            return true
+            this.shoot(x, y, angle, entitySize);
+            return true;
         }
-        return false
+        return false;
+    }
+
+    shoot(x, y, angle, entitySize) {
+        const barrelEndX = x + Math.cos(angle) * (entitySize / 2);
+        const barrelEndY = y + Math.sin(angle) * (entitySize / 2);
+        const projectile = this.createProjectile(barrelEndX, barrelEndY, this.speed, angle, this.damage, this.owner);
     }
 }
 
 class RangedWeapon extends Weapon {
-    constructor(name, damage, speed, cooldown, projectileClass, projectileSize = 3) {   
-        super(name, damage, speed, cooldown, projectileClass);
-        this.projectileSize = projectileSize;
+    constructor(name, damage, speed, cooldown, createProjectile) {
+        super(name, damage, speed, cooldown, createProjectile);
     }
 
-    attack(x, y, angle, entitySize) {
-        if (super.attack()) {
-            this.shoot(x, y, angle, entitySize)
-        } 
-    }
     shoot(x, y, angle, entitySize) {
-        const barrelEndX = x + Math.cos(angle) * (entitySize/2+10);
-        const barrelEndY = y + Math.sin(angle) * (entitySize/2+10);
-        const projectile = new this.projectileClass(
-            barrelEndX,
-            barrelEndY,
-            this.speed,
-            angle,
-            this.projectileSize,
-            this.damage
-        );
-    
-        return projectile;
+        super.shoot(x, y, angle, entitySize);
     }
 }
-
 
 
 
@@ -489,7 +484,7 @@ class RangedWeapon extends Weapon {
 
 
 class Projectile extends GameObject {
-    constructor(x, y, speed, angle, size, damage, color = 'violet') {
+    constructor(x, y, speed, angle, size, damage, color = 'violet', owner = null) {
         super(x, y, size);
         this.visualEffects = new VisualEffectStorage();
         this.speed = speed;
@@ -498,6 +493,7 @@ class Projectile extends GameObject {
         this.dy = Math.sin(this.angle) * this.speed;
         this.damage = damage;
         this.color = color;
+        this.owner = owner;
         projectiles.push(this);
     }
 
@@ -515,21 +511,21 @@ class Projectile extends GameObject {
         this.visualEffects.updateEffects();
     }
 
-
     handleCollision(other) {
         other.onCollisionWithProjectile(this);
     }
 
-
-    onCollisionWithProjectile(other){
-        console.log('proj')
+    onCollisionWithProjectile(other) {    
     }
+    
+
     onCollisionWithWall(wall) {
         this.destroy();
     }
 
     onCollisionWithEntity(entity) {
-        this.destroy();
+        if (this.owner == entity){return}
+        this.destroy()
     }
 
     destroy() {
@@ -539,9 +535,30 @@ class Projectile extends GameObject {
             projectiles.splice(index, 1);
         }
     }
-
 }
 
+class ImpulseProjectile extends Projectile{
+    constructor(x, y, speed, angle, size, damage, color = 'violet', owner=null){
+        super(x, y, speed, angle, size, damage, color = 'violet', owner)
+    }
+    onCollisionWithProjectile(other){
+        let thisMass = this.size; // Масса текущего снаряда
+        let otherMass = other.size; // Масса другого снаряда
+    
+        // Вычисляем импульсы
+        let thisImpulseX = this.dx * thisMass;
+        let thisImpulseY = this.dy * thisMass;
+        let otherImpulseX = other.dx * otherMass;
+        let otherImpulseY = other.dy * otherMass;
+    
+        // Обмен импульсами с учетом массы и законов сохранения импульса и энергии
+        this.dx = (thisImpulseX + otherImpulseX) / (thisMass + otherMass);
+        this.dy = (thisImpulseY + otherImpulseY) / (thisMass + otherMass);
+        other.dx = (thisImpulseX + otherImpulseX) / (thisMass + otherMass);
+        other.dy = (thisImpulseY + otherImpulseY) / (thisMass + otherMass);
+    }
+    
+}
 
 
 
@@ -853,10 +870,15 @@ class Canvas {
 
 
 
+const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
+    return new Projectile(x, y, speed, angle, 25, damage, 'green', owner); // Произвольные параметры
+};
+const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
+    return new ImpulseProjectile(x, y, speed, angle, 15, damage, 'blue', owner); // Произвольные параметры
+};
 
 
-
-let projectiles = []; // Array to store projectiles
+let projectiles = []
 let weapons = []
 
 const canvas = document.getElementById('gameCanvas');
@@ -865,14 +887,17 @@ const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 
 const gameMap = new GameMap(1300, 1300)
 
-const weapon = new RangedWeapon('Bow', 10, 13, 150, Projectile, 5)
-const enemyWeapon = new RangedWeapon('Bow', -10, 10, 300, Projectile, 5)
+const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
+
+const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, weapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, playerWeapon);
 const camera = new Camera(ctx, gameMap, canvasObj, player, canvas.height, canvas.width)
+
 const enemy = new Entity(700, 400, 135, 30, 5, 100, enemyWeapon)
+
 
 const entities = [player, enemy]
 
