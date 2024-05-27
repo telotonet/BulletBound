@@ -52,14 +52,15 @@ class BaseDebugger {
 }
 
 class GameObject extends BaseDebugger {
-    constructor(x, y, size) {
+    constructor(x, y, size, angle = 0) {
         super();
         this.x = x;
         this.y = y;
         this.size = size;
+        this.angle = angle; // Угол объекта
         this.createCollider();
     }
-    
+
     get DrawX() {
         return this.x - camera.x;
     }
@@ -67,8 +68,9 @@ class GameObject extends BaseDebugger {
     get DrawY() {
         return this.y - camera.y;
     }
+
     createCollider() {
-        this.collider = new Collider(this, this.x, this.y, 50, 20);
+        this.collider = new Collider(this, this.x, this.y, this.size, this.size, this.angle);
     }
 
     destroy() {
@@ -80,11 +82,6 @@ class GameObject extends BaseDebugger {
             BaseDebugger.objects.splice(index, 1);
         }
     }
-
-    /* 
-        Here are three simple methods for implementing interactions between different types of game objects
-        You can simply call some method on the other object that implements the logic of its interaction with this object and implement such a method in its class (F.e other.onGameObjectCollision(this))
-    */
 
     handleCollision(other) {
         // Handle ongoing collisions
@@ -100,32 +97,54 @@ class GameObject extends BaseDebugger {
 }
 
 class Collider {
-    constructor(owner, x, y, width, height) {
+    constructor(owner, x, y, width, height, angle = 0) {
         this.owner = owner;
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.angle = angle; // Угол коллайдера
         this.collidingWith = new Set();
         collisionManager.addCollider(this);
     }
 
-    get left()   { return this.owner.x - this.width / 2 }
-    get right()  { return this.owner.x + this.width / 2 }
-    get top()    { return this.owner.y - this.height/ 2 }
-    get bottom() { return this.owner.y + this.height/ 2 }
-
+    getVertices() {
+        const hw = this.width / 2;
+        const hh = this.height / 2;
+        const cosA = Math.cos(this.angle);
+        const sinA = Math.sin(this.angle);
+        return [
+            { x: this.x + cosA * -hw - sinA * -hh, y: this.y + sinA * -hw + cosA * -hh },
+            { x: this.x + cosA * hw - sinA * -hh, y: this.y + sinA * hw + cosA * -hh },
+            { x: this.x + cosA * hw - sinA * hh, y: this.y + sinA * hw + cosA * hh },
+            { x: this.x + cosA * -hw - sinA * hh, y: this.y + sinA * -hw + cosA * hh }
+        ];
+    }
+    drawDirection(ctx, dx, dy) {
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        const length = 20; // длина линии направления
+        const endX = this.owner.DrawX + dx * length;
+        const endY = this.owner.DrawY + dy * length;
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = "rgb(13, 207, 0)"; // цвет линии
+        ctx.lineWidth = 2; // толщина линии
+        ctx.stroke();
+        ctx.closePath();
+    }
     draw(ctx) {
+        const vertices = this.getVertices();
+        this.drawDirection(ctx, this.owner.dx, this.owner.dy)
+
         ctx.save();
-        ctx.translate(this.owner.x - camera.x, this.owner.y - camera.y);
         ctx.strokeStyle = 'rgb(13, 207, 0)';
         ctx.lineWidth = 2;
-        ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
         ctx.beginPath();
-        ctx.moveTo(-this.width / 2, -this.height / 2);
-        ctx.lineTo(this.width / 2, this.height / 2);
-        ctx.moveTo(this.width / 2, -this.height / 2);
-        ctx.lineTo(-this.width / 2, this.height / 2);
+        ctx.moveTo(vertices[0].x - camera.x, vertices[0].y - camera.y);
+        for (let i = 1; i < vertices.length; i++) {
+            ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
+        }
+        ctx.closePath();
         ctx.stroke();
         ctx.restore();
     }
@@ -133,36 +152,70 @@ class Collider {
     update() {
         this.x = this.owner.x;
         this.y = this.owner.y;
+        this.angle = this.owner.angle;
     }
 
     isCollidingWith(otherCollider) {
-        return (
-            this.right > otherCollider.left &&
-            this.left < otherCollider.right &&
-            this.bottom > otherCollider.top &&
-            this.top < otherCollider.bottom
-        );
+        const verticesA = this.getVertices();
+        const verticesB = otherCollider.getVertices();
+
+        const axes = [...Collider.getAxes(verticesA), ...Collider.getAxes(verticesB)];
+
+        for (let axis of axes) {
+            const projectionA = Collider.project(verticesA, axis);
+            const projectionB = Collider.project(verticesB, axis);
+
+            if (!Collider.overlap(projectionA, projectionB)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static getAxes(vertices) {
+        const axes = [];
+        for (let i = 0; i < vertices.length; i++) {
+            const p1 = vertices[i];
+            const p2 = vertices[(i + 1) % vertices.length];
+            const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
+            axes.push({ x: -edge.y, y: edge.x });
+        }
+        return axes;
+    }
+
+    static project(vertices, axis) {
+        let min = Infinity;
+        let max = -Infinity;
+        for (let vertex of vertices) {
+            const projection = vertex.x * axis.x + vertex.y * axis.y;
+            if (projection < min) min = projection;
+            if (projection > max) max = projection;
+        }
+        return { min, max };
+    }
+
+    static overlap(projA, projB) {
+        return projA.max >= projB.min && projB.max >= projA.min;
     }
 
     handleCollision(otherCollider) {
-
         const isColliding = this.isCollidingWith(otherCollider);
 
         if (isColliding && !this.collidingWith.has(otherCollider)) {
             this.collidingWith.add(otherCollider);
             otherCollider.collidingWith.add(this);
-            try{this.owner.onColliderEnter(otherCollider.owner);} catch{}
-            try{otherCollider.owner.onColliderEnter(this.owner);} catch{}
+            try { this.owner.onColliderEnter(otherCollider.owner); } catch {}
+            try { otherCollider.owner.onColliderEnter(this.owner); } catch {}
         } else if (!isColliding && this.collidingWith.has(otherCollider)) {
             this.collidingWith.delete(otherCollider);
             otherCollider.collidingWith.delete(this);
-            try{this.owner.onColliderLeave(otherCollider.owner);} catch{}
-            try{otherCollider.owner.onColliderLeave(this.owner);} catch{}
+            try { this.owner.onColliderLeave(otherCollider.owner); } catch {}
+            try { otherCollider.owner.onColliderLeave(this.owner); } catch {}
         }
 
         if (isColliding) {
-            try {this.owner.handleCollision(otherCollider.owner);} catch {}
-            try {otherCollider.owner.handleCollision(this.owner);} catch {}
+            try { this.owner.handleCollision(otherCollider.owner); } catch {}
+            try { otherCollider.owner.handleCollision(this.owner); } catch {}
         }
     }
 
@@ -192,18 +245,20 @@ class CollisionManager {
     }
 
     update() {
-        /* handleCollision method calls when this and any other collider touch each other
-        According to the Double Dispatch pattern, you must call the collision method of otherCollider with this.collider */
+        this.getColliders().forEach(collider => {
+            collider.update()
+            
+        });
         for (let i = 0; i < this.colliders.length; i++) {
             for (let j = i + 1; j < this.colliders.length; j++) {
                 const colliderA = this.colliders[i];
                 const colliderB = this.colliders[j];
                 colliderA.handleCollision(colliderB);
-                colliderB.handleCollision(colliderA);
             }
         }
     }
 }
+
 
 
 
@@ -233,10 +288,12 @@ class Entity extends GameObject {
     }
 
     draw(ctx, camera) {
+        ctx.save();
+        ctx.translate(this.DrawX, this.DrawY);
+        ctx.rotate(this.angle);
         ctx.fillStyle = 'red';
-        const x = this.DrawX;
-        const y = this.DrawY;
-        ctx.fillRect(x - this.size / 2, y - this.size / 2, this.size, this.size);
+        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.restore();
         this.visualEffects.drawEffects();
     }
 
@@ -254,31 +311,40 @@ class Entity extends GameObject {
     onColliderLeave(other){
         other.onEntityLeave(this)
     }
+
     onProjectileEnter(projectile){
         if (projectile.owner == this){return} 
         this.health.change(-projectile.damage)
     }
 
     onCollisionWithWall(wall) {
-        const overlapX = this.getOverlap(this.collider.left, this.collider.right, wall.collider.left, wall.collider.right);
-        const overlapY = this.getOverlap(this.collider.top, this.collider.bottom, wall.collider.top, wall.collider.bottom);
+        const dx = this.x - wall.collider.x;
+        const dy = this.y - wall.collider.y;
+        const halfWidths = (this.collider.width + wall.collider.width) / 2;
+        const halfHeights = (this.collider.height + wall.collider.height) / 2;
 
-        // Pushing out of the wall
-        if (Math.abs(overlapX) < Math.abs(overlapY)) {
-            this.x -= overlapX;
-            this.dx = 0;
-        } else {
-            this.y -= overlapY;
-            this.dy = 0;
+        const offsetX = halfWidths - Math.abs(dx);
+        const offsetY = halfHeights - Math.abs(dy);
+
+        if (offsetX > 0 && offsetY > 0) {
+            if (offsetX < offsetY) {
+                // Изменяем скорость по оси x на противоположную
+                this.dx = -this.dx;
+            } else {
+                // Изменяем скорость по оси y на противоположную
+                this.dy = -this.dy;
+            }
         }
     }
 
-    getOverlap(minA, maxA, minB, maxB) {
-        return (minA < minB) ? maxA - minB : minA - maxB;
+    onWallEnter(wall){
     }
 
     onCollisionWithEntity(entity){
         this.onCollisionWithWall(entity)
+    }
+    onEntityEnter(entity){
+        this.onWallEnter(entity)
     }
 
     destroy() {
@@ -315,21 +381,9 @@ class Player extends Entity {
         this.keysPressed = {};
         this.initControls();
     }
-    draw(ctx) {
-        // Рисуем игрока, учитывая его поворот
-        ctx.save(); // Сохраняем текущее состояние контекста
-
-        ctx.translate(this.DrawX, this.DrawY); // Переносим начало координат в центр игрока
-        ctx.rotate(this.angle); // Поворачиваем контекст на угол игрока
-        ctx.fillStyle = 'red';
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size); // Рисуем игрока относительно его центра
-        ctx.restore(); // Восстанавливаем исходное состояние контекста
-        this.visualEffects.drawEffects();
-
-    }
     update() {
-        this.handleInput();
         super.update();
+        this.handleInput();
     }
 
     initControls() {
@@ -523,8 +577,7 @@ class MeleeWeapon extends Weapon {
     shoot(x, y, angle, entitySize) {
         const barrelEndX = x + Math.cos(angle) * (entitySize / 2);
         const barrelEndY = y + Math.sin(angle) * (entitySize / 2);
-        console.log(barrelEndX )
-        new MeleeAttackObject(barrelEndX, barrelEndY, this.damage, this.owner);
+        const swingObject = new MeleeAttackObject(barrelEndX, barrelEndY, this.damage, this.owner);
     }
 }
 
@@ -534,19 +587,18 @@ class MeleeAttackObject extends GameObject {
         super(x, y, size);
         this.damage = damage;
         this.owner = owner;
+        this.angle = this.owner.angle
 
         // Удаляем объект через короткое время после создания
-        setTimeout(() => this.destroy(), 1100); // 100 мс, или любое подходящее время
+        setTimeout(() => this.destroy(), 100); // 100 мс, или любое подходящее время
     }
     update(){
-        this.x = this.owner.x 
-        this.y = this.owner.y
+        const barrelEndX = this.owner.x + Math.cos(this.angle) * (this.owner.size / 2 + 20);
+        const barrelEndY = this.owner.y + Math.sin(this.angle) * (this.owner.size / 2 + 20);
+        this.x = barrelEndX
+        this.y = barrelEndY
     }
     handleCollision(other) {
-        // Логика обработки столкновений
-        if (other !== this.owner) {
-            this.destroy(); // Уничтожаем объект после столкновения
-        }
     }
 }
 
@@ -970,7 +1022,7 @@ const ctx = canvas.getContext('2d');
 const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 const BASE_WIDTH = 880;
 const BASE_HEIGHT = 600;
-const gameMap = new GameMap(1300, 1300)
+const gameMap = new GameMap(Infinity, Infinity)
 
 const playerWeapon = new MeleeWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
 
@@ -981,7 +1033,7 @@ const collisionManager = new CollisionManager();
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, playerWeapon);
 const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
 
-const enemy = new Entity(700, 400, 135, 30, 5, 100, enemyWeapon)
+const enemy = new Entity(500, 400, 135, 30, 5, 100, enemyWeapon)
 
 
 const entities = [player, enemy]
@@ -1015,7 +1067,7 @@ function loadLevel(levelData) {
     levelData.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
             if (cell === 1) {
-                const wall = new SlimeWall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
+                const wall = new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
                 walls.push(wall);
             }
         });
@@ -1068,11 +1120,9 @@ function gameLoop() {
 function updateAndDrawGame() {
     // Отрисовка объектов с учетом масштабирования
     canvasObj.draw(ctx, camera);
-    updater.update(entities);
-    updater.update(projectiles);
+    updater.update(BaseDebugger.objects)
     updater.update([camera, gameMap]);
     updater.update([canvasObj]);
-    updater.update(walls);
     gameMap.draw(ctx, camera);
     renderer.draw(projectiles);
     renderer.draw(walls);
@@ -1084,8 +1134,6 @@ function updateAndDrawGame() {
             collider.draw(ctx);
         });
     }
-    // Восстановление исходного состояния контекста
-    ctx.restore();
 }
 
 function pauseGame() {
