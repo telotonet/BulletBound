@@ -318,24 +318,41 @@ class Entity extends GameObject {
     }
 
     onCollisionWithWall(wall) {
-        const dx = this.x - wall.collider.x;
-        const dy = this.y - wall.collider.y;
-        const halfWidths = (this.collider.width + wall.collider.width) / 2;
-        const halfHeights = (this.collider.height + wall.collider.height) / 2;
-
-        const offsetX = halfWidths - Math.abs(dx);
-        const offsetY = halfHeights - Math.abs(dy);
-
-        if (offsetX > 0 && offsetY > 0) {
-            if (offsetX < offsetY) {
-                // Изменяем скорость по оси x на противоположную
-                this.dx = -this.dx;
-            } else {
-                // Изменяем скорость по оси y на противоположную
-                this.dy = -this.dy;
-            }
+        const playerCollider = this.collider;
+        const wallCollider = wall.collider;
+    
+        // Get center coordinates of player and wall colliders
+        const playerCenterX = this.x;
+        const playerCenterY = this.y;
+        const wallCenterX = wall.x;
+        const wallCenterY = wall.y;
+    
+        // Calculate direction vector from player to wall
+        const directionX = playerCenterX - wallCenterX;
+        const directionY = playerCenterY - wallCenterY;
+    
+        // Calculate the distance between player and wall
+        const distance = Math.sqrt(directionX ** 2 + directionY ** 2);
+    
+        // Normalize direction vector
+        const normalizedDirectionX = directionX / distance;
+        const normalizedDirectionY = directionY / distance;
+    
+        // Calculate overlap based on distance and collider sizes
+        const overlapX = (playerCollider.width + wallCollider.width) / 2 - Math.abs(directionX);
+        const overlapY = (playerCollider.height + wallCollider.height) / 2 - Math.abs(directionY);
+    
+        // Choose the smaller overlap
+        const smallestOverlap = Math.min(overlapX, overlapY);
+    
+        // If there's overlap, adjust dx and dy to push player out
+        if (smallestOverlap > 0) {
+            this.dx += normalizedDirectionX * smallestOverlap; // 0.1 is a damping factor to smooth the movement
+            this.dy += normalizedDirectionY * smallestOverlap;
         }
     }
+    
+    
 
     onWallEnter(wall){
     }
@@ -358,6 +375,8 @@ class Entity extends GameObject {
     move() {
         this.x += this.dx;
         this.y += this.dy;
+        this.dx =0
+        this.dy =0
     }
 
     attack() {
@@ -385,7 +404,8 @@ class Player extends Entity {
         super.update();
         this.handleInput();
     }
-
+    onCollisionWithEntity(entity){
+    }
     initControls() {
         document.addEventListener('keydown', (event) => {
             this.keysPressed[event.key.toLowerCase()] = true;
