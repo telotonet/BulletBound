@@ -1,3 +1,5 @@
+import CollisionUtils from './CollisionUtils.js';
+
 class Health {
     constructor(entity, maxHealth) {
         this.entity = entity
@@ -44,6 +46,7 @@ class BaseDebugger {
                 classCount[className]++;
             }
         }
+        classCount.colliders = collisionManager.getColliders().length+1;
         return classCount;
     }
     static getObjectsByType(type) {
@@ -135,19 +138,18 @@ class Collider {
     draw(ctx) {
         const vertices = this.getVertices();
         this.drawDirection(ctx, this.owner.dx, this.owner.dy)
-
-        ctx.save();
+    
         ctx.strokeStyle = 'rgb(13, 207, 0)';
         ctx.lineWidth = 2;
+    
         ctx.beginPath();
-        ctx.moveTo(vertices[0].x - camera.x, vertices[0].y - camera.y);
-        for (let i = 1; i < vertices.length; i++) {
+        for (let i = 0; i < vertices.length; i++) {
             ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
         }
         ctx.closePath();
         ctx.stroke();
-        ctx.restore();
     }
+    
 
     update() {
         this.x = this.owner.x;
@@ -273,7 +275,6 @@ class CollisionManager {
 
 
 
-
 class Entity extends GameObject {
     constructor(x, y, angle, size, speed, health, weapon) {
         super(x, y, size);
@@ -302,68 +303,6 @@ class Entity extends GameObject {
         this.visualEffects.updateEffects();
     }
 
-    handleCollision(other){
-        other.onCollisionWithEntity(this)
-    }
-    onColliderEnter(other){
-        other.onEntityEnter(this)
-    }
-    onColliderLeave(other){
-        other.onEntityLeave(this)
-    }
-
-    onProjectileEnter(projectile){
-        if (projectile.owner == this){return} 
-        this.health.change(-projectile.damage)
-    }
-
-    onCollisionWithWall(wall) {
-        const playerCollider = this.collider;
-        const wallCollider = wall.collider;
-    
-        // Get center coordinates of player and wall colliders
-        const playerCenterX = this.x;
-        const playerCenterY = this.y;
-        const wallCenterX = wall.x;
-        const wallCenterY = wall.y;
-    
-        // Calculate direction vector from player to wall
-        const directionX = playerCenterX - wallCenterX;
-        const directionY = playerCenterY - wallCenterY;
-    
-        // Calculate the distance between player and wall
-        const distance = Math.sqrt(directionX ** 2 + directionY ** 2);
-    
-        // Normalize direction vector
-        const normalizedDirectionX = directionX / distance;
-        const normalizedDirectionY = directionY / distance;
-    
-        // Calculate overlap based on distance and collider sizes
-        const overlapX = (playerCollider.width + wallCollider.width) / 2 - Math.abs(directionX);
-        const overlapY = (playerCollider.height + wallCollider.height) / 2 - Math.abs(directionY);
-    
-        // Choose the smaller overlap
-        const smallestOverlap = Math.min(overlapX, overlapY);
-    
-        // If there's overlap, adjust dx and dy to push player out
-        if (smallestOverlap > 0) {
-            this.dx += normalizedDirectionX * smallestOverlap; // 0.1 is a damping factor to smooth the movement
-            this.dy += normalizedDirectionY * smallestOverlap;
-        }
-    }
-    
-    
-
-    onWallEnter(wall){
-    }
-
-    onCollisionWithEntity(entity){
-        this.onCollisionWithWall(entity)
-    }
-    onEntityEnter(entity){
-        this.onWallEnter(entity)
-    }
-
     destroy() {
         super.destroy();
         const index = entities.indexOf(this);
@@ -390,6 +329,37 @@ class Entity extends GameObject {
         gameMap.visualEffects.addEffect(deathEffect)
         this.destroy();
     }
+
+    // Handle Collision with {this} 
+    handleCollision(other){
+        other.onCollisionWithEntity(this)
+    }
+    onColliderEnter(other){
+        other.onEntityEnter(this)
+    }
+    onColliderLeave(other){
+        other.onEntityLeave(this)
+    }
+
+    // Handle Collision with {other} objects
+    onProjectileEnter(projectile){
+        if (projectile.owner == this){return} 
+        this.health.change(-projectile.damage)
+    }
+
+    onCollisionWithWall(wall) {
+        CollisionUtils.rigidBody(this, wall)
+    }
+
+    onWallLeave(wall){}
+
+    onWallEnter(wall){}
+
+    onCollisionWithEntity(entity){
+        CollisionUtils.rigidBody(this, entity)
+    }
+
+    onEntityEnter(entity){}
 }
 
 class Player extends Entity {
@@ -493,19 +463,22 @@ class Wall extends GameObject {
         this.visualEffects.updateEffects();
     }
 
-    handleCollision(other) {
-        other.onCollisionWithWall(this);
-    }
-    onColliderEnter(other){
-        other.onWallEnter(this)
-    }
-
     destroy() {
         super.destroy();
         const index = walls.indexOf(this);
         if (index !== -1) {
             walls.splice(index, 1);
         }
+    }
+
+    handleCollision(other) {
+        other.onCollisionWithWall(this);
+    }
+    onColliderEnter(other){
+        other.onWallEnter(this)
+    }
+    onColliderLeave(other){
+        other.onWallLeave(this)
     }
 }
 
@@ -1053,10 +1026,10 @@ const collisionManager = new CollisionManager();
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, playerWeapon);
 const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
 
-const enemy = new Entity(500, 400, 135, 30, 5, 100, enemyWeapon)
+const enemy = new Entity(500, 400, 0, 30, 5, 100, enemyWeapon)
+const enemy2 = new Entity(500, 401, 0, 30, 5, 100, enemyWeapon)
 
-
-const entities = [player, enemy]
+const entities = [player, enemy, enemy2]
 
 
 const updater = new Updater()
