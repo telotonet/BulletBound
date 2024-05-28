@@ -1,4 +1,5 @@
 import CollisionUtils from './CollisionUtils.js';
+import CollisionHandler from './CollisionHandler.js'
 
 class Health {
     constructor(entity, maxHealth) {
@@ -47,6 +48,7 @@ class BaseDebugger {
             }
         }
         classCount.colliders = collisionManager.getColliders().length+1;
+        classCount.collisions = collisionManager.getTotalCollisions();
         return classCount;
     }
     static getObjectsByType(type) {
@@ -206,18 +208,15 @@ class Collider {
         if (isColliding && !this.collidingWith.has(otherCollider)) {
             this.collidingWith.add(otherCollider);
             otherCollider.collidingWith.add(this);
-            try { this.owner.onColliderEnter(otherCollider.owner); } catch {}
-            try { otherCollider.owner.onColliderEnter(this.owner); } catch {}
+            CollisionHandler.onEnter(this.owner, otherCollider.owner);
         } else if (!isColliding && this.collidingWith.has(otherCollider)) {
             this.collidingWith.delete(otherCollider);
             otherCollider.collidingWith.delete(this);
-            try { this.owner.onColliderLeave(otherCollider.owner); } catch {}
-            try { otherCollider.owner.onColliderLeave(this.owner); } catch {}
+            CollisionHandler.onLeave(this.owner, otherCollider.owner);
         }
 
         if (isColliding) {
-            try { this.owner.handleCollision(otherCollider.owner); } catch {}
-            try { otherCollider.owner.handleCollision(this.owner); } catch {}
+            CollisionHandler.handleCollision(this.owner, otherCollider.owner);
         }
     }
 
@@ -244,6 +243,14 @@ class CollisionManager {
 
     getColliders() {
         return this.colliders;
+    }
+
+    getTotalCollisions() {
+        let totalCollisions = 0;
+        for (const collider of this.colliders) {
+            totalCollisions += collider.collidingWith.size;
+        }
+        return totalCollisions;
     }
 
     update() {
@@ -374,8 +381,6 @@ class Player extends Entity {
         super.update();
         this.handleInput();
     }
-    onCollisionWithEntity(entity){
-    }
     initControls() {
         document.addEventListener('keydown', (event) => {
             this.keysPressed[event.key.toLowerCase()] = true;
@@ -498,21 +503,7 @@ class SlimeWall extends Wall {
     }
 }
 
-class SlimeWall extends Wall {
-    onCollisionWithEntity(entity) {
-        // entity.speed *= 0.99;
-    }
 
-    handleCollision(other) {
-        // Specific handling for SlimeWall collisions
-    }
-    onEntityEnter(entity){
-        entity.speed *= 0.5
-    }
-    onEntityLeave(entity){
-        entity.speed *= 2   
-    }
-}
 
 
 
@@ -1075,7 +1066,7 @@ function loadLevel(levelData) {
     levelData.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
             if (cell === 1) {
-                const wall = new SlimeWall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
+                const wall = new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
                 walls.push(wall);
             }
         });
