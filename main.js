@@ -19,7 +19,7 @@ class Health {
             this.health += amount;
         }
         if (amount < 0) {
-            const damageEffect = new DamageNumberEffect(this.entity, 15, amount, 1000, 'black');
+            const damageEffect = new DamageNumberEffect(this.entity, 0, 0, amount, 1000, 'black');
             this.entity.visualEffects.addEffect(damageEffect);
         }
         if (this.health > this.maxHealth) {
@@ -57,13 +57,16 @@ class BaseDebugger {
 }
 
 class GameObject extends BaseDebugger {
-    constructor(x, y, size, angle = 0) {
+    constructor(x, y, width, height, angle = 0, dx, dy) {
         super();
         this.x = x;
         this.y = y;
-        this.size = size;
+        this.width = width;
+        this.height = height;
         this.angle = angle; // Угол объекта
         this.createCollider();
+        this.dx = dx;
+        this.dy = dy;
     }
 
     get DrawX() {
@@ -73,9 +76,13 @@ class GameObject extends BaseDebugger {
     get DrawY() {
         return this.y - camera.y;
     }
-
+    update(){
+        this.x += this.dx
+        this.y += this.dy
+ 
+    }
     createCollider() {
-        this.collider = new Collider(this, this.x, this.y, this.size, this.size, this.angle);
+        this.collider = new Collider(this, this.x, this.y, this.width, this.height, this.angle);
     }
 
     destroy() {
@@ -113,69 +120,6 @@ class Collider {
         collisionManager.addCollider(this);
     }
 
-    getVertices() {
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-        const cosA = Math.cos(this.angle);
-        const sinA = Math.sin(this.angle);
-        return [
-            { x: this.x + cosA * -hw - sinA * -hh, y: this.y + sinA * -hw + cosA * -hh },
-            { x: this.x + cosA * hw - sinA * -hh, y: this.y + sinA * hw + cosA * -hh },
-            { x: this.x + cosA * hw - sinA * hh, y: this.y + sinA * hw + cosA * hh },
-            { x: this.x + cosA * -hw - sinA * hh, y: this.y + sinA * -hw + cosA * hh }
-        ];
-    }
-    drawDirection(ctx, dx, dy) {
-        ctx.beginPath();
-        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        const length = 20; // длина линии направления
-        const endX = this.owner.DrawX + dx * length;
-        const endY = this.owner.DrawY + dy * length;
-        ctx.lineTo(endX, endY);
-        ctx.strokeStyle = "rgb(13, 207, 0)"; // цвет линии
-        ctx.lineWidth = 2; // толщина линии
-        ctx.stroke();
-        ctx.closePath();
-    }
-    draw(ctx) {
-        const vertices = this.getVertices();
-        this.drawDirection(ctx, this.owner.dx, this.owner.dy)
-    
-        ctx.strokeStyle = 'rgb(13, 207, 0)';
-        ctx.lineWidth = 2;
-    
-        ctx.beginPath();
-        for (let i = 0; i < vertices.length; i++) {
-            ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
-        }
-        ctx.closePath();
-        ctx.stroke();
-    }
-    
-
-    update() {
-        this.x = this.owner.x;
-        this.y = this.owner.y;
-        this.angle = this.owner.angle;
-    }
-
-    isCollidingWith(otherCollider) {
-        const verticesA = this.getVertices();
-        const verticesB = otherCollider.getVertices();
-
-        const axes = [...Collider.getAxes(verticesA), ...Collider.getAxes(verticesB)];
-
-        for (let axis of axes) {
-            const projectionA = Collider.project(verticesA, axis);
-            const projectionB = Collider.project(verticesB, axis);
-
-            if (!Collider.overlap(projectionA, projectionB)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     static getAxes(vertices) {
         const axes = [];
         for (let i = 0; i < vertices.length; i++) {
@@ -202,6 +146,69 @@ class Collider {
         return projA.max >= projB.min && projB.max >= projA.min;
     }
 
+    getVertices() {
+        const hw = this.width / 2;
+        const hh = this.height / 2;
+        const cosA = Math.cos(this.angle);
+        const sinA = Math.sin(this.angle);
+        return [
+            { x: this.x + cosA * -hw - sinA * -hh, y: this.y + sinA * -hw + cosA * -hh },
+            { x: this.x + cosA * hw - sinA * -hh, y: this.y + sinA * hw + cosA * -hh },
+            { x: this.x + cosA * hw - sinA * hh, y: this.y + sinA * hw + cosA * hh },
+            { x: this.x + cosA * -hw - sinA * hh, y: this.y + sinA * -hw + cosA * hh }
+        ];
+    }
+    drawDirection(ctx, dx, dy) {
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        const length = 15;
+        const endX = this.owner.DrawX + dx * length;
+        const endY = this.owner.DrawY + dy * length;
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = "rgb(13, 207, 0)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+    }
+    draw(ctx) {
+        const vertices = this.getVertices();
+        this.drawDirection(ctx, this.owner.dx, this.owner.dy)
+    
+        ctx.strokeStyle = 'rgb(13, 207, 0)';
+        ctx.lineWidth = 2;
+    
+        ctx.beginPath();
+        for (let i = 0; i < vertices.length; i++) {
+            ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+    update() {
+        this.x = this.owner.x;
+        this.y = this.owner.y;
+        this.angle = this.owner.angle;
+    }
+
+    isCollidingWith(otherCollider) {
+        const verticesA = this.getVertices();
+        const verticesB = otherCollider.getVertices();
+
+        const axes = [...Collider.getAxes(verticesA), ...Collider.getAxes(verticesB)];
+
+        for (let axis of axes) {
+            const projectionA = Collider.project(verticesA, axis);
+            const projectionB = Collider.project(verticesB, axis);
+
+            if (!Collider.overlap(projectionA, projectionB)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+
     handleCollision(otherCollider) {
         const isColliding = this.isCollidingWith(otherCollider);
 
@@ -216,11 +223,19 @@ class Collider {
         }
 
         if (isColliding) {
-            CollisionHandler.handleCollision(this.owner, otherCollider.owner);
+            CollisionHandler.onCollision(this.owner, otherCollider.owner);
+        }
+    }
+
+
+    removeSelfFromColliders() {
+        for (const otherCollider of this.collidingWith) {
+            otherCollider.collidingWith.delete(this);
         }
     }
 
     destroy() {
+        this.removeSelfFromColliders();
         collisionManager.removeCollider(this);
     }
 }
@@ -283,11 +298,9 @@ class CollisionManager {
 
 
 class Entity extends GameObject {
-    constructor(x, y, angle, size, speed, health, weapon) {
-        super(x, y, size);
+    constructor(x, y, angle, width, height, speed, health, weapon) {
+        super(x, y, width, height, angle, 0, 0);
         this.speed = speed;
-        this.dx = 0;
-        this.dy = 0;
         this.angle = angle * Math.PI / 180;
         this.weapon = weapon;
         this.weapon.owner = this
@@ -300,7 +313,7 @@ class Entity extends GameObject {
         ctx.translate(this.DrawX, this.DrawY);
         ctx.rotate(this.angle);
         ctx.fillStyle = 'red';
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
         ctx.restore();
         this.visualEffects.drawEffects();
     }
@@ -326,26 +339,16 @@ class Entity extends GameObject {
     }
 
     attack() {
-        this.weapon.attack(this.x, this.y, this.angle, this.size);
+        const entitySize = Math.max(this.width, this.height)
+        this.weapon.attack(this.x, this.y, this.angle, entitySize);
     }
 
     die() {
         this.visualEffects.clearEffects();
         this.weapon.destroy()
-        const deathEffect = new DeathEffect(gameMap, 32, 300, this.x, this.y)
+        const deathEffect = new DeathEffect(gameMap, 32, 32, 300, this.x, this.y)
         gameMap.visualEffects.addEffect(deathEffect)
         this.destroy();
-    }
-
-    // Handle Collision with {this} 
-    handleCollision(other){
-        other.onCollisionWithEntity(this)
-    }
-    onColliderEnter(other){
-        other.onEntityEnter(this)
-    }
-    onColliderLeave(other){
-        other.onEntityLeave(this)
     }
 
     // Handle Collision with {other} objects
@@ -355,23 +358,16 @@ class Entity extends GameObject {
     }
 
     onCollisionWithWall(wall) {
-        CollisionUtils.rigidBody(this, wall)
+        CollisionUtils.rigidBody(wall, this, 0.8)
     }
-
-    onWallLeave(wall){}
-
-    onWallEnter(wall){}
 
     onCollisionWithEntity(entity){
-        CollisionUtils.rigidBody(this, entity)
     }
-
-    onEntityEnter(entity){}
 }
 
 class Player extends Entity {
-    constructor(x, y, angle, size, speed, health, weapon) {
-        super(x, y, angle, size, speed, health, weapon);
+    constructor(x, y, angle, width, height, speed, health, weapon) {
+        super(x, y, angle, width, height, speed, health, weapon);
         this.mouseX = x;
         this.mouseY = y;
         this.keysPressed = {};
@@ -452,7 +448,7 @@ class Player extends Entity {
 
 class Wall extends GameObject {
     constructor(x, y, width, height) {
-        super(x, y, Math.max(width, height));
+        super(x, y, width, height, 0, 0, 0);
         this.width = width;
         this.height = height;
         this.visualEffects = new VisualEffectStorage();
@@ -465,6 +461,7 @@ class Wall extends GameObject {
     }
 
     update() {
+        super.update()
         this.visualEffects.updateEffects();
     }
 
@@ -475,15 +472,8 @@ class Wall extends GameObject {
             walls.splice(index, 1);
         }
     }
-
-    handleCollision(other) {
-        other.onCollisionWithWall(this);
-    }
-    onColliderEnter(other){
-        other.onWallEnter(this)
-    }
-    onColliderLeave(other){
-        other.onWallLeave(this)
+    onCollisionWithWall(wall){
+        CollisionUtils.rigidBody(this, wall, 0.8)
     }
 }
 
@@ -536,7 +526,7 @@ class Weapon {
 
     canAttack() {
         const currentTime = Date.now();
-        return (currentTime - this.lastAttackTime) >= this.cooldown;
+        return (currentTime - this.lastAttackTime) >= this.cooldown && entities.includes(this.owner);
     }
 
     attack(x, y, angle, entitySize) {
@@ -549,7 +539,7 @@ class Weapon {
     }
 
     shoot(x, y, angle, entitySize) {
-
+        // you should implement this method
     }
 }
 
@@ -567,42 +557,6 @@ class RangedWeapon extends Weapon {
     }
 }
 
-class MeleeWeapon extends Weapon {
-    constructor(name, damage, speed, cooldown, range) {
-        super(name, damage, speed, cooldown);
-        this.range = range;
-    }
-
-    shoot(x, y, angle, entitySize) {
-        const barrelEndX = x + Math.cos(angle) * (entitySize / 2);
-        const barrelEndY = y + Math.sin(angle) * (entitySize / 2);
-        const swingObject = new MeleeAttackObject(barrelEndX, barrelEndY, this.damage, this.owner);
-    }
-}
-
-class MeleeAttackObject extends GameObject {
-    constructor(x, y, damage, owner) {
-        const size = 30; // Размер игрового объекта можно настроить по необходимости
-        super(x, y, size);
-        this.damage = damage;
-        this.owner = owner;
-        this.angle = this.owner.angle
-
-        // Удаляем объект через короткое время после создания
-        setTimeout(() => this.destroy(), 100); // 100 мс, или любое подходящее время
-    }
-    update(){
-        const barrelEndX = this.owner.x + Math.cos(this.angle) * (this.owner.size / 2 + 20);
-        const barrelEndY = this.owner.y + Math.sin(this.angle) * (this.owner.size / 2 + 20);
-        this.x = barrelEndX
-        this.y = barrelEndY
-    }
-    handleCollision(other) {
-    }
-}
-
-
-
 
 
 
@@ -617,13 +571,13 @@ class MeleeAttackObject extends GameObject {
 
 
 class Projectile extends GameObject {
-    constructor(x, y, speed, angle, size, damage, color = 'violet', owner = null) {
-        super(x, y, size);
+    constructor(x, y, speed, angle, width, height, damage, color = 'violet', owner = null) {
+        super(x, y, width, height, angle,
+                Math.cos(angle)*speed,
+                Math.sin(angle)*speed
+            );
         this.visualEffects = new VisualEffectStorage();
         this.speed = speed;
-        this.angle = angle;
-        this.dx = Math.cos(this.angle) * this.speed;
-        this.dy = Math.sin(this.angle) * this.speed;
         this.damage = damage;
         this.color = color;
         this.owner = owner;
@@ -634,34 +588,24 @@ class Projectile extends GameObject {
         this.visualEffects.drawEffects();
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.DrawX, this.DrawY, this.size / 2, 0, Math.PI * 2);
+        ctx.arc(this.DrawX, this.DrawY, this.width / 2, 0, Math.PI * 2);
         ctx.fill();
     }
 
     update() {
-        this.x += this.dx;
-        this.y += this.dy;
+        super.update()
         this.visualEffects.updateEffects();
     }
 
-    handleCollision(other) {
-        other.onCollisionWithProjectile(this);
-    }
-    onColliderEnter(other){
-        other.onProjectileEnter(this)
-    }
-        
-    onCollisionWithWall(wall) {
-        this.destroy();
-    }
-
-    onCollisionWithEntity(entity) {
+    onEntityEnter(entity) {
         if (this.owner == entity){return}
         this.destroy()
     }
+
     onWallEnter(wall){
         this.destroy()
     }
+
     destroy() {
         super.destroy();
         const index = projectiles.indexOf(this);
@@ -672,26 +616,19 @@ class Projectile extends GameObject {
 }
 
 class ImpulseProjectile extends Projectile{
-    constructor(x, y, speed, angle, size, damage, color = 'violet', owner=null){
-        super(x, y, speed, angle, size, damage, color = 'violet', owner)
+    constructor(x, y, speed, angle, width, height, damage, color = 'blue', owner){
+        super(x, y, speed, angle, width, height, damage, color, owner)
     }
     onCollisionWithProjectile(other){
-        let thisMass = this.size; // Масса текущего снаряда
-        let otherMass = other.size; // Масса другого снаряда
-    
-        // Вычисляем импульсы
-        let thisImpulseX = this.dx * thisMass;
-        let thisImpulseY = this.dy * thisMass;
-        let otherImpulseX = other.dx * otherMass;
-        let otherImpulseY = other.dy * otherMass;
-    
-        // Обмен импульсами с учетом массы и законов сохранения импульса и энергии
-        this.dx = (thisImpulseX + otherImpulseX) / (thisMass + otherMass);
-        this.dy = (thisImpulseY + otherImpulseY) / (thisMass + otherMass);
-        other.dx = (thisImpulseX + otherImpulseX) / (thisMass + otherMass);
-        other.dy = (thisImpulseY + otherImpulseY) / (thisMass + otherMass);
+        CollisionUtils.rigidBody(this, other)
     }
-    
+    onCollisionWithImpulseProjectile(other){
+        CollisionUtils.rigidBody(this, other)
+    }
+    onCollisionWithWall(other){
+        CollisionUtils.rigidBody(this, other, 1)
+    }
+
 }
 
 
@@ -708,23 +645,6 @@ class ImpulseProjectile extends Projectile{
 
 
 
-class Particle extends GameObject{
-    // Base class for any particles in visual effects
-    constructor(x, y, size, dx, dy, color){
-        super(x,y,size)
-        this.dx = dx
-        this.dy = dy
-        this.color = color
-    }
-    draw(){
-        ctx.fillStyle = this.color
-        ctx.fillRect(this.DrawX, this.DrawY, this.size, this.size);
-    }
-    update() {
-        this.x += this.dx;
-        this.y += this.dy;
-    }
-}
 
 class VisualEffectStorage {
     constructor() {
@@ -760,8 +680,8 @@ class VisualEffectStorage {
 }
 
 class VisualEffect extends GameObject{
-    constructor(entity, size, duration, x , y) {
-        super(x, y, size)
+    constructor(entity, width, height, duration, x , y) {
+        super(x, y, width, height, 0)
         this.entity = entity;
         this.duration = duration;
         this.elapsedTime = 0;
@@ -772,7 +692,7 @@ class VisualEffect extends GameObject{
     }
 
     draw(ctx) {
-        // You must implement this method
+        // You should implement this method
     }
 
     update() {
@@ -789,8 +709,8 @@ class VisualEffect extends GameObject{
 }
 
 class DamageNumberEffect extends VisualEffect {
-    constructor(entity, size, value, duration, color, x, y, font= 'Cooper Black', fontSize=30) {
-        super(entity, size, duration, x, y);
+    constructor(entity, width, height, value, duration, color, x, y, font= 'Cooper Black', fontSize=30) {
+        super(entity, width, height, duration, x, y);
         this.value = value;
         this.y = this.entity.y;
         this.color = color;
@@ -800,7 +720,6 @@ class DamageNumberEffect extends VisualEffect {
         this.onCreate()
     }
 
-    createCollider(){return}
 
     onCreate(){
         const existingEffectIndex = this.entity.visualEffects.getEffects().findIndex(e => e instanceof DamageNumberEffect);
@@ -822,10 +741,10 @@ class DamageNumberEffect extends VisualEffect {
 }
 
 class DeathEffect extends VisualEffect {
-    constructor(entity, size, duration, x, y, colors=['blue', 'lightblue', 'yellow']) {
-        super(entity, size, duration, x, y);
-        this.maxRadius = size; 
-        this.minRadius = size/4; 
+    constructor(entity, width, height, duration, x, y, colors=['blue', 'lightblue', 'yellow']) {
+        super(entity, width, height, duration, x, y);
+        this.maxRadius = width; 
+        this.minRadius = width/4; 
         this.growthSpeed = 5;
         this.radius = 6;
         this.colors = colors; 
@@ -917,7 +836,7 @@ class Updater {
 
 
 class GameMap{
-    constructor(height, width){
+    constructor(width, height){
         this.visualEffects = new VisualEffectStorage()
         this.height = height;
         this.width = width;
@@ -932,7 +851,7 @@ class GameMap{
 
 
 class Camera {
-    constructor(ctx, gameMap, player, height, width) {
+    constructor(ctx, gameMap, player, width, height) {
         this.ctx = ctx;
         this.gameMap = gameMap;
         this.height = height;
@@ -975,8 +894,9 @@ class Camera {
         const cameraBottom = this.y + this.height;
         objects.forEach(object => {
             // Проверяем, находится ли объект в зоне видимости камеры
-            if (object.x + object.size > cameraLeft && object.x < cameraRight &&
-                object.y + object.size > cameraTop && object.y < cameraBottom) {
+            const objectSize = Math.max(object.height, object.width)
+            if (object.x + objectSize > cameraLeft && object.x < cameraRight &&
+                object.y + objectSize > cameraTop && object.y < cameraBottom) {
                 visibleObjects.push(object);
             }
         });
@@ -1006,10 +926,10 @@ class Canvas {
 
 
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
-    return new Projectile(x, y, speed, angle, 15, damage, 'green', owner); // Произвольные параметры
+    return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
 const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
-    return new ImpulseProjectile(x, y, speed, angle, 15, damage, 'blue', owner); // Произвольные параметры
+    return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
 };
 
 
@@ -1023,17 +943,17 @@ const BASE_WIDTH = 880;
 const BASE_HEIGHT = 600;
 const gameMap = new GameMap(Infinity, Infinity)
 
-const playerWeapon = new MeleeWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
+const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
 
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 30, 5, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 20, 50, 5, 100, playerWeapon);
 const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
 
-const enemy = new Entity(500, 400, 0, 30, 5, 100, enemyWeapon)
-const enemy2 = new Entity(500, 401, 0, 30, 5, 100, enemyWeapon)
+const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
+const enemy2 = new Entity(500, 405, 0, 30, 20, 5, 100, enemyWeapon)
 
 const entities = [player, enemy, enemy2]
 
@@ -1051,7 +971,7 @@ const levelGrid = [
     [1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1],
-    [0,0,0,0,0,0,0],
+    [1,0,0,0,0,0,0],
     [1, 1, 1, 1, 1, 0, 1],
     [1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1],

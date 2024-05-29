@@ -1,5 +1,5 @@
 export default class CollisionHandler {
-    static handleCollision(objectA, objectB) {
+    static onCollision(objectA, objectB) {
         const methodA = `onCollisionWith${objectB.constructor.name}`;
         const methodB = `onCollisionWith${objectA.constructor.name}`;
 
