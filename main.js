@@ -108,7 +108,7 @@ class GameObject extends BaseDebugger {
     }
 }
 
-class Collider {
+export default class Collider {
     constructor(owner, x, y, width, height, angle = 0) {
         this.owner = owner;
         this.x = x;
@@ -118,17 +118,6 @@ class Collider {
         this.angle = angle; // Угол коллайдера
         this.collidingWith = new Set();
         collisionManager.addCollider(this);
-    }
-
-    static getAxes(vertices) {
-        const axes = [];
-        for (let i = 0; i < vertices.length; i++) {
-            const p1 = vertices[i];
-            const p2 = vertices[(i + 1) % vertices.length];
-            const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
-            axes.push({ x: -edge.y, y: edge.x });
-        }
-        return axes;
     }
 
     static project(vertices, axis) {
@@ -158,6 +147,22 @@ class Collider {
             { x: this.x + cosA * -hw - sinA * hh, y: this.y + sinA * -hw + cosA * hh }
         ];
     }
+
+    getAxes() {
+        const vertices = this.getVertices()
+        const axes = [];
+        for (let i = 0; i < vertices.length; i++) {
+            const p1 = vertices[i];
+            const p2 = vertices[(i + 1) % vertices.length];
+            const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
+            const normal = { x: -edge.y, y: edge.x };
+            // Нормализуем ось
+            const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
+            axes.push({ x: normal.x / length, y: normal.y / length });
+        }
+        return axes;
+    }
+
     drawDirection(ctx, dx, dy) {
         ctx.beginPath();
         ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
@@ -194,7 +199,7 @@ class Collider {
         const verticesA = this.getVertices();
         const verticesB = otherCollider.getVertices();
 
-        const axes = [...Collider.getAxes(verticesA), ...Collider.getAxes(verticesB)];
+        const axes = [...this.getAxes(), ...otherCollider.getAxes()];
 
         for (let axis of axes) {
             const projectionA = Collider.project(verticesA, axis);
@@ -358,10 +363,11 @@ class Entity extends GameObject {
     }
 
     onCollisionWithWall(wall) {
-        CollisionUtils.rigidBody(wall, this, 0.8)
+        CollisionUtils.rigidBody(wall, this, 1)
     }
 
     onCollisionWithEntity(entity){
+        CollisionUtils.rigidBody(entity, this, 2)
     }
 }
 
@@ -473,7 +479,7 @@ class Wall extends GameObject {
         }
     }
     onCollisionWithWall(wall){
-        CollisionUtils.rigidBody(this, wall, 0.8)
+        CollisionUtils.rigidBody(this, wall)
     }
 }
 
@@ -601,9 +607,11 @@ class Projectile extends GameObject {
         if (this.owner == entity){return}
         this.destroy()
     }
-
+    onCollisionWithWall(wall){
+        CollisionUtils.rigidBody(this, wall)
+    }
     onWallEnter(wall){
-        this.destroy()
+        this.onCollisionWithWall(wall)
     }
 
     destroy() {
@@ -949,7 +957,7 @@ const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProje
 
 const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 20, 50, 5, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 40, 40, 5, 100, playerWeapon);
 const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
 
 const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
