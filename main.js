@@ -77,8 +77,8 @@ class GameObject extends BaseDebugger {
         return this.y - camera.y;
     }
     update(){
-        this.x += this.dx
-        this.y += this.dy
+        this.x += this.dx * deltaTime
+        this.y += this.dy * deltaTime
  
     }
     createCollider() {
@@ -324,7 +324,9 @@ class Entity extends GameObject {
     }
 
     update() {
-        this.move();
+        super.update()
+        this.dx = 0
+        this.dy = 0
         this.visualEffects.updateEffects();
     }
 
@@ -334,13 +336,6 @@ class Entity extends GameObject {
         if (index !== -1) {
             entities.splice(index, 1);
         }
-    }
-
-    move() {
-        this.x += this.dx;
-        this.y += this.dy;
-        this.dx = 0
-        this.dy = 0
     }
 
     attack() {
@@ -378,6 +373,7 @@ class Player extends Entity {
         this.mouseY = y;
         this.keysPressed = {};
         this.initControls();
+        camera.target = this
     }
     update() {
         super.update();
@@ -550,7 +546,6 @@ class RangedWeapon extends Weapon {
     constructor(name, damage, speed, cooldown, createProjectile) {
         super(name, damage, speed, cooldown);
         this.createProjectile = createProjectile;
-
     }
 
     shoot(x, y, angle, entitySize) {
@@ -686,22 +681,22 @@ class VisualEffectStorage {
 
 class VisualEffect extends GameObject{
     constructor(entity, width, height, duration, x , y) {
-        super(x, y, width, height, 0)
+        super(x, y, width, height, 0, 0, 0)
         this.entity = entity;
         this.duration = duration;
         this.elapsedTime = 0;
-        this.startTime = performance.now();
+        this.startTime =  gameTimer.getTime();
     }
-
-    onCreate(){
-    }
+    createCollider(){}
+    onCreate(){}
 
     draw(ctx) {
         // You should implement this method
     }
 
     update() {
-        this.elapsedTime = performance.now() - this.startTime;
+        super.update()
+        this.elapsedTime = gameTimer.getTime() - this.startTime;
         if (this.elapsedTime >= this.duration) {
             this.destroy()
         }
@@ -719,7 +714,7 @@ class DamageNumberEffect extends VisualEffect {
         this.value = value;
         this.y = this.entity.y;
         this.color = color;
-        this.speed = 3; // Numbers Y movespeed
+        this.speed = 1; // Numbers Y movespeed
         this.font = font
         this.fontSize = fontSize
         this.onCreate()
@@ -738,10 +733,13 @@ class DamageNumberEffect extends VisualEffect {
         ctx.save();
         ctx.fillStyle = this.color;
         ctx.font = `bold ${this.fontSize}px ${this.font}`;
-        this.y -= this.speed * (this.elapsedTime / this.duration);
-        this.x = this.entity.x
         ctx.fillText(this.value.toFixed(1), this.DrawX, this.DrawY);
         ctx.restore();
+    }
+    update(){
+        super.update()
+        this.y -= (this.elapsedTime / this.duration) * this.speed * deltaTime
+        this.x = this.entity.x
     }
 }
 
@@ -756,7 +754,6 @@ class DeathEffect extends VisualEffect {
         this.colorIndex = 0;
         this.expanding = true;
     }
-    createCollider(){}
     draw(ctx, camera) {
         ctx.save();
         ctx.beginPath();
@@ -779,12 +776,12 @@ class DeathEffect extends VisualEffect {
         super.update();
         // increase or decrease depending on the phase (this.expanding)
         if (this.expanding) {
-            this.radius += this.growthSpeed;
+            this.radius += this.growthSpeed*deltaTime;
             if (this.radius >= this.maxRadius) {
                 this.expanding = false;
             }
         } else {
-            this.radius -= this.growthSpeed;
+            this.radius -= this.growthSpeed*deltaTime;
             if (this.radius <= this.minRadius) {
                 this.expanding = true
             }
@@ -854,28 +851,67 @@ class GameMap{
     }
 }
 
+class GameTimer {
+    constructor() {
+        this.startTime = 0;
+        this.elapsedTime = 0;
+        this.lastUpdate = 0;
+        this.paused = true;
+    }
+
+    start() {
+        if (this.paused) {
+            this.paused = false;
+            this.lastUpdate = performance.now();
+        }
+    }
+
+    pause() {
+        if (!this.paused) {
+            this.paused = true;
+            this.elapsedTime += performance.now() - this.lastUpdate;
+        }
+    }
+
+    reset() {
+        this.startTime = performance.now();
+        this.elapsedTime = 0;
+        this.paused = true;
+    }
+
+    getTime() {
+        if (this.paused) {
+            return this.elapsedTime;
+        } else {
+            return this.elapsedTime + (performance.now() - this.lastUpdate);
+        }
+    }
+}
+
 
 class Camera {
-    constructor(ctx, gameMap, player, width, height) {
+    constructor(ctx, gameMap, target, width, height, smoothness = 0.15) {
         this.ctx = ctx;
         this.gameMap = gameMap;
         this.height = height;
         this.width = width;
-        this.player = player;
-        this.centerX = this.player.x;
-        this.centerY = this.player.y;
+        this.target = target;
+        this.centerX = this.target.x;
+        this.centerY = this.target.y;
         this.x = 0; // Изменяем начальные значения координат камеры
         this.y = 0;
         this.offsetX = this.width/2; // Смещение для центрирования игрока на экране
         this.offsetY = this.height/2;
+        this.smoothness = smoothness
     }
 
     update() {
-        this.centerX = this.player.x;
-        this.centerY = this.player.y;
-        // Обновляем координаты камеры, чтобы она следовала за игроком, учитывая смещение для центрирования
-        this.x = this.centerX - this.offsetX;
-        this.y = this.centerY - this.offsetY;
+        const targetX = this.target.x - this.offsetX;
+        const targetY = this.target.y - this.offsetY;
+
+        // Используем линейную интерполяцию для плавного перемещения камеры
+        this.x += (targetX - this.x) * this.smoothness;
+        this.y += (targetY - this.y) * this.smoothness;
 
         // Проверяем, чтобы камера не выходила за границы карты
         if (this.x + this.width > this.gameMap.width) {
@@ -937,7 +973,7 @@ class Canvas {
 
 
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
-    return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
+    return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
 const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
     return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
@@ -947,30 +983,34 @@ const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
 let projectiles = []
 let weapons = []
 
+const BASE_WIDTH = 800;
+const BASE_HEIGHT = 600;
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
-const BASE_WIDTH = 800;
-const BASE_HEIGHT = 600;
 const gameMap = new GameMap(Infinity, Infinity)
+const gameTimer = new GameTimer();
+const updater = new Updater()
+const camera = new Camera(ctx, gameMap, {x:0, y:0}, BASE_WIDTH, BASE_HEIGHT, 0.1)
+const renderer = new Renderer(ctx, camera)
+
 
 const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
 
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
+
 const collisionManager = new CollisionManager();
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 52, 52, 5, 100, playerWeapon);
-const camera = new Camera(ctx, gameMap, player, BASE_WIDTH, BASE_HEIGHT)
-
 const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
-const enemy2 = new Entity(500, 405, 0, 30, 20, 5, 100, enemyWeapon)
 
-const entities = [player, enemy, enemy2]
+const entities = [player, enemy]
 
 
-const updater = new Updater()
-const renderer = new Renderer(ctx, camera)
+
+
 
 
 const levelGrid = [
@@ -1005,10 +1045,6 @@ function loadLevel(levelData) {
 
     return walls;
 }
-
-
-
-const tileSize = 50;
 const walls = loadLevel(levelGrid);
 
 
@@ -1021,16 +1057,27 @@ const walls = loadLevel(levelGrid);
 
 
 
-
+// DEBUG
 let debug = 1
+
+// FPS COUNTER
 let fps = 0;
 let lastFpsUpdate = performance.now();
 let framesThisSecond = 0;
+
+// PAUSE
 let requestId;
-let paused = false; // Флаг состояния паузы
+let paused = false;
+
+// GAME TIMER
+let lastTimestamp = performance.now();
+let deltaTime = 0;
 
 function gameLoop() {
     if (!paused) {
+        const timestamp = performance.now()
+        deltaTime = (timestamp - lastTimestamp) / 32; // Relative to my developing pc 30 fps
+        lastTimestamp = timestamp;
         updateAndDrawGame();
 
         const now = performance.now();
@@ -1039,15 +1086,19 @@ function gameLoop() {
         if (now - lastFpsUpdate >= 1000) {
             lastFpsUpdate = now;
             framesThisSecond = 0;
+            document.getElementById('fps-info').textContent = 'FPS: ' + fps;
         }
-        document.getElementById('fps-info').textContent = 'FPS: ' + fps;
-        document.getElementById('object-count').textContent = `Objects: ` + JSON.stringify(BaseDebugger.getObjectClassCount(), null, 2);;
+
+        document.getElementById('object-count').textContent = `Objects: ` + JSON.stringify(BaseDebugger.getObjectClassCount(), null, 2);
+        document.getElementById('timer').textContent = `Timer: ` + JSON.stringify(gameTimer.getTime(), null, 2);
     }
 
     requestId = requestAnimationFrame(gameLoop);
 }
 
+
 function updateAndDrawGame() {
+    gameTimer.start();
     // Отрисовка объектов с учетом масштабирования
     canvasObj.draw(ctx, camera);
     updater.update(BaseDebugger.objects)
@@ -1069,12 +1120,14 @@ function updateAndDrawGame() {
 function pauseGame() {
     paused = true;
     cancelAnimationFrame(requestId);
+    gameTimer.pause();
 }
 
 function resumeGame() {
     if (paused) {
         paused = false;
-        lastFpsUpdate = performance.now(); // Сброс времени для точного расчета FPS
+        lastTimestamp = performance.now()
+        gameTimer.start();
         gameLoop();
     }
 }
@@ -1091,3 +1144,5 @@ document.addEventListener('keydown', (event) => {
 });
 
 gameLoop();
+
+export {Collider, deltaTime}

@@ -1,4 +1,4 @@
-import Collider from '/main.js'
+import {Collider, deltaTime} from '/main.js'
 export default class CollisionUtils {
     static rigidBody(movableObj, rigidObj, smoothness = 1) {
         const colliderA = movableObj.collider;
@@ -48,8 +48,8 @@ export default class CollisionUtils {
             const correctionX = smallestAxis.x * minOverlap * smoothness;
             const correctionY = smallestAxis.y * minOverlap * smoothness;
 
-            movableObj.dx += correctionX;
-            movableObj.dy += correctionY;
+            movableObj.dx += correctionX * deltaTime;
+            movableObj.dy += correctionY * deltaTime;
         }
     }
 }
