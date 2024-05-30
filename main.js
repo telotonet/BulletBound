@@ -339,8 +339,8 @@ class Entity extends GameObject {
     move() {
         this.x += this.dx;
         this.y += this.dy;
-        this.dx =0
-        this.dy =0
+        this.dx = 0
+        this.dy = 0
     }
 
     attack() {
@@ -363,7 +363,7 @@ class Entity extends GameObject {
     }
 
     onCollisionWithWall(wall) {
-        CollisionUtils.rigidBody(wall, this, 1)
+        CollisionUtils.rigidBody(this, wall, 1)
     }
 
     onCollisionWithEntity(entity){
@@ -477,9 +477,6 @@ class Wall extends GameObject {
         if (index !== -1) {
             walls.splice(index, 1);
         }
-    }
-    onCollisionWithWall(wall){
-        CollisionUtils.rigidBody(this, wall)
     }
 }
 
@@ -608,7 +605,7 @@ class Projectile extends GameObject {
         this.destroy()
     }
     onCollisionWithWall(wall){
-        CollisionUtils.rigidBody(this, wall)
+        this.destroy()
     }
     onWallEnter(wall){
         this.onCollisionWithWall(wall)
@@ -869,8 +866,8 @@ class Camera {
         this.centerY = this.player.y;
         this.x = 0; // Изменяем начальные значения координат камеры
         this.y = 0;
-        this.offsetX = this.width / 2; // Смещение для центрирования игрока на экране
-        this.offsetY = this.height / 2;
+        this.offsetX = this.width/2; // Смещение для центрирования игрока на экране
+        this.offsetY = this.height/2;
     }
 
     update() {
@@ -881,33 +878,39 @@ class Camera {
         this.y = this.centerY - this.offsetY;
 
         // Проверяем, чтобы камера не выходила за границы карты
-        if (this.x < 0) {
-            this.x = 0;
-        } else if (this.x + this.width > this.gameMap.width) {
+        if (this.x + this.width > this.gameMap.width) {
             this.x = this.gameMap.width - this.width;
         }
 
-        if (this.y < 0) {
-            this.y = 0;
-        } else if (this.y + this.height > this.gameMap.height) {
+        if (this.y + this.height > this.gameMap.height) {
             this.y = this.gameMap.height - this.height;
         }
     }
 
     getVisibleObjects(objects) {
         const visibleObjects = [];
-        const cameraLeft = this.x;
-        const cameraRight = this.x + this.width;
-        const cameraTop = this.y;
-        const cameraBottom = this.y + this.height;
-        objects.forEach(object => {
-            // Проверяем, находится ли объект в зоне видимости камеры
-            const objectSize = Math.max(object.height, object.width)
-            if (object.x + objectSize > cameraLeft && object.x < cameraRight &&
-                object.y + objectSize > cameraTop && object.y < cameraBottom) {
-                visibleObjects.push(object);
+        
+        for (const obj of objects) {
+            const vertices = obj.collider.getVertices();
+            
+            let visible = false;
+            for (const vertex of vertices) {
+                if (
+                    vertex.x >= this.x &&
+                    vertex.x <= this.x + this.width &&
+                    vertex.y >= this.y &&
+                    vertex.y <= this.y + this.height
+                ) {
+                    visible = true;
+                    break;
+                }
             }
-        });
+
+            if (visible) {
+                visibleObjects.push(obj);
+            }
+        }
+
         return visibleObjects;
     }
 }
@@ -947,7 +950,7 @@ let weapons = []
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
-const BASE_WIDTH = 880;
+const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
 const gameMap = new GameMap(Infinity, Infinity)
 
@@ -957,8 +960,8 @@ const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProje
 
 const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 40, 40, 5, 100, playerWeapon);
-const camera = new Camera(ctx, gameMap, player, BASE_HEIGHT, BASE_WIDTH)
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 52, 52, 5, 100, playerWeapon);
+const camera = new Camera(ctx, gameMap, player, BASE_WIDTH, BASE_HEIGHT)
 
 const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
 const enemy2 = new Entity(500, 405, 0, 30, 20, 5, 100, enemyWeapon)
