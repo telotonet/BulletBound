@@ -1,4 +1,5 @@
-import {Collider, deltaTime} from '/main.js'
+import {Collider, deltaTime} from '/main.js';
+
 export default class CollisionUtils {
     static rigidBody(movableObj, rigidObj, smoothness = 1) {
         const colliderA = movableObj.collider;
@@ -21,15 +22,15 @@ export default class CollisionUtils {
             const projectionB = Collider.project(verticesB, axis);
 
             if (!Collider.overlap(projectionA, projectionB)) {
-                return; // No collision
+                return; // Нет столкновения
             } else {
-                // Find min overlap
+                // Находим минимальное перекрытие
                 const overlap = Math.min(projectionA.max, projectionB.max) - Math.max(projectionA.min, projectionB.min);
                 if (overlap < minOverlap) {
                     minOverlap = overlap;
-                    smallestAxis = axis;
+                    smallestAxis = { ...axis };
 
-                    // Find overlap direction
+                    // Определяем направление перекрытия
                     const direction = {
                         x: movableObj.x - rigidObj.x,
                         y: movableObj.y - rigidObj.y
@@ -43,11 +44,17 @@ export default class CollisionUtils {
             }
         }
 
-        // Move object in direction of min overlap
+        // Нормализуем smallestAxis
+        const axisLength = Math.sqrt(smallestAxis.x * smallestAxis.x + smallestAxis.y * smallestAxis.y);
+        smallestAxis.x /= axisLength;
+        smallestAxis.y /= axisLength;
+
+        // Корректируем положение объекта в направлении минимального перекрытия
         if (minOverlap > 0) {
             const correctionX = smallestAxis.x * minOverlap * smoothness;
             const correctionY = smallestAxis.y * minOverlap * smoothness;
 
+            // Обновляем скорости, чтобы учесть коррекцию
             movableObj.dx += correctionX * deltaTime;
             movableObj.dy += correctionY * deltaTime;
         }

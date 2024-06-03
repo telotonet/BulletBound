@@ -1,5 +1,6 @@
 import CollisionUtils from './CollisionUtils.js';
 import CollisionHandler from './CollisionHandler.js'
+import {Menu, Button, initializePauseMenu} from './Modal.js'
 
 class Health {
     constructor(entity, maxHealth) {
@@ -164,13 +165,31 @@ export default class Collider {
     }
 
     drawDirection(ctx, dx, dy) {
+        const length = 5;
+        
+        // Рисуем общую скорость (зеленая стрелка)
         ctx.beginPath();
         ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        const length = 15;
-        const endX = this.owner.DrawX + dx * length;
-        const endY = this.owner.DrawY + dy * length;
-        ctx.lineTo(endX, endY);
+        ctx.lineTo(this.owner.DrawX + dx * 4, this.owner.DrawY + dy * 4);
         ctx.strokeStyle = "rgb(13, 207, 0)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+
+        // Рисуем скорость по оси X (синяя стрелка)
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        ctx.lineTo(this.owner.DrawX + dx * length, this.owner.DrawY);
+        ctx.strokeStyle = "rgb(61, 65, 255)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+
+        // Рисуем скорость по оси Y (красная стрелка)
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        ctx.lineTo(this.owner.DrawX, this.owner.DrawY + dy * length);
+        ctx.strokeStyle = "rgb(252, 43, 214)";
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.closePath();
@@ -272,7 +291,9 @@ class CollisionManager {
         }
         return totalCollisions;
     }
-
+    clearColliders(){
+        this.colliders = []
+    }
     update() {
         this.getColliders().forEach(collider => {
             collider.update()
@@ -311,6 +332,7 @@ class Entity extends GameObject {
         this.weapon.owner = this
         this.health = new Health(this, health);
         this.visualEffects = new VisualEffectStorage();
+        this.spawn()
     }
 
     draw(ctx, camera) {
@@ -341,6 +363,10 @@ class Entity extends GameObject {
     attack() {
         const entitySize = Math.max(this.width, this.height)
         this.weapon.attack(this.x, this.y, this.angle, entitySize);
+    }
+
+    spawn(){
+        entities.push(this)
     }
 
     die() {
@@ -454,6 +480,7 @@ class Wall extends GameObject {
         this.width = width;
         this.height = height;
         this.visualEffects = new VisualEffectStorage();
+        walls.push(this);
     }
 
     draw(ctx) {
@@ -492,6 +519,57 @@ class SlimeWall extends Wall {
     }
 }
 
+class FractureWall extends Wall {
+    constructor(x, y, width, height){
+        super(x, y, width, height)
+    }
+
+    splitWall() {
+        // Проверяем размер стенки для завершения рекурсии
+        if (this.width < 15 || this.height < 15) {
+            return;
+        }
+
+        const dx = Math.random()
+        const dy = Math.random()
+        this.getSubWalls().forEach(subWall => {
+            const fractWall = new FractureWall(subWall[0].x, subWall[0].y, this.width / 2, this.height / 2);
+            fractWall.dx = dx * 0.1
+            fractWall.dy = dy * 0.1
+            fractWall.splitWall()
+            this.destroy()
+        });
+
+    }
+
+    getSubWalls() {
+        const x = this.x;
+        const y = this.y;
+        const width = this.width / 2;
+        const height = this.height / 2;
+
+        return [
+            [{ x: x - width / 2, y: y - height / 2 }], // Top-left quadrant
+            [{ x: x + width / 2, y: y - height / 2 }], // Top-right quadrant
+            [{ x: x - width / 2, y: y + height / 2 }], // Bottom-left quadrant
+            [{ x: x + width / 2, y: y + height / 2 }]  // Bottom-right quadrant
+        ];
+    }
+
+    onProjectileEnter(projectile) {
+        this.destroy();
+        projectile.destroy();
+        this.splitWall();
+    }
+    onFractureWallEnter(wall){
+    }
+    onCollisionWithFractureWall(wall){
+        CollisionUtils.rigidBody(wall, this, 0.1)
+    }
+    onCollisionWithPlayer(entity){
+        CollisionUtils.rigidBody(this, entity)
+    }
+}
 
 
 
@@ -811,6 +889,8 @@ class DeathEffect extends VisualEffect {
 
 
 
+
+
 class Renderer {
     constructor(ctx, camera) {
         this.ctx = ctx;
@@ -973,7 +1053,7 @@ class Canvas {
 
 
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
-    return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
+    return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
 const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
     return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
@@ -982,6 +1062,8 @@ const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
 
 let projectiles = []
 let weapons = []
+let modals = []
+let entities = []
 
 const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
@@ -1004,9 +1086,8 @@ const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProje
 const collisionManager = new CollisionManager();
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 0, 52, 52, 5, 100, playerWeapon);
-const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
+const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
-const entities = [player, enemy]
 
 
 
@@ -1031,21 +1112,19 @@ const levelGrid = [
 
 
 function loadLevel(levelData) {
-    const walls = [];
     const tileSize = 50;
 
     levelData.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
             if (cell === 1) {
-                const wall = new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
-                walls.push(wall);
-            }
+                new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
+                            }
         });
     });
 
-    return walls;
 }
-const walls = loadLevel(levelGrid);
+let walls = [];
+loadLevel(levelGrid)
 
 
 
@@ -1053,7 +1132,16 @@ const walls = loadLevel(levelGrid);
 
 
 
+function resetGame() {
+    
+}
 
+// Функция для сброса игрового таймера
+gameTimer.reset = function() {
+    this.startTime = performance.now();
+    this.pausedTime = 0;
+    this.isPaused = false;
+};
 
 
 
@@ -1074,6 +1162,7 @@ let lastTimestamp = performance.now();
 let deltaTime = 0;
 
 function gameLoop() {
+
     if (!paused) {
         const timestamp = performance.now()
         deltaTime = (timestamp - lastTimestamp) / 32; // Relative to my developing pc 30 fps
@@ -1092,14 +1181,17 @@ function gameLoop() {
         document.getElementById('object-count').textContent = `Objects: ` + JSON.stringify(BaseDebugger.getObjectClassCount(), null, 2);
         document.getElementById('timer').textContent = `Timer: ` + JSON.stringify(gameTimer.getTime(), null, 2);
     }
-
+    modals.forEach(modal => {
+        modal.draw(ctx);
+        modal.update();
+    });
     requestId = requestAnimationFrame(gameLoop);
 }
 
 
 function updateAndDrawGame() {
     gameTimer.start();
-    // Отрисовка объектов с учетом масштабирования
+    // enemy.attack()
     canvasObj.draw(ctx, camera);
     updater.update(BaseDebugger.objects)
     updater.update([camera, gameMap]);
@@ -1118,8 +1210,9 @@ function updateAndDrawGame() {
 }
 
 function pauseGame() {
+    let framesThisSecond = 0
+
     paused = true;
-    cancelAnimationFrame(requestId);
     gameTimer.pause();
 }
 
@@ -1128,21 +1221,44 @@ function resumeGame() {
         paused = false;
         lastTimestamp = performance.now()
         gameTimer.start();
-        gameLoop();
     }
 }
 
-// Пример использования
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'p') {
-        if (!paused){
+function switchPause(){
+    const currentTime = performance.now();
+    if (currentTime - lastPauseToggleTime > PAUSE_TOGGLE_COOLDOWN) {
+        if (!paused) {
+            pauseMenu.show()
             pauseGame();
         } else {
+            pauseMenu.hide()
             resumeGame();
         }
+        lastPauseToggleTime = currentTime;
+    }
+}
+function switchDebug(){
+    switch(debug){
+        case 0:
+            debug = 1
+            break
+        case 1:
+            debug = 0
+            break
+    }
+}
+
+let pauseMenu = initializePauseMenu();
+let lastPauseToggleTime = 0;
+
+
+const PAUSE_TOGGLE_COOLDOWN = 1000;
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        switchPause()
     }
 });
 
 gameLoop();
 
-export {Collider, deltaTime}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, resetGame}
