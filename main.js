@@ -71,11 +71,11 @@ class GameObject extends BaseDebugger {
     }
 
     get DrawX() {
-        return this.x - camera.x;
+        return this.x - camera.left;
     }
 
     get DrawY() {
-        return this.y - camera.y;
+        return this.y - camera.top;
     }
     update(){
         this.x += this.dx * deltaTime
@@ -203,7 +203,7 @@ export default class Collider {
     
         ctx.beginPath();
         for (let i = 0; i < vertices.length; i++) {
-            ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
+            ctx.lineTo(vertices[i].x - camera.left, vertices[i].y - camera.top);
         }
         ctx.closePath();
         ctx.stroke();
@@ -413,8 +413,9 @@ class Player extends Entity {
             this.keysPressed[event.key.toLowerCase()] = false;
         });
         canvas.addEventListener('mousemove', (event) => {
-            this.mouseX = event.clientX + camera.x - canvas.getBoundingClientRect().left;
-            this.mouseY = event.clientY + camera.y - canvas.getBoundingClientRect().top;
+            this.mouseX = event.clientX + camera.left - canvas.getBoundingClientRect().left;
+            this.mouseY = event.clientY + camera.top - canvas.getBoundingClientRect().top;
+            console.log(camera.x)
             this.angle = Math.atan2(this.mouseY - this.y, this.mouseX - this.x);
         });
     }
@@ -976,31 +977,25 @@ class Camera {
         this.height = height;
         this.width = width;
         this.target = target;
-        this.centerX = this.target.x;
-        this.centerY = this.target.y;
-        this.x = 0; // Изменяем начальные значения координат камеры
-        this.y = 0;
-        this.offsetX = this.width/2; // Смещение для центрирования игрока на экране
-        this.offsetY = this.height/2;
+        this._x = 0;
+        this._y = 0;
         this.smoothness = smoothness
     }
+    lerp(start, end, t) {
+        return start + (end - start) * t;
+    }
+    get x(){return this._x}
+    get y(){return this._y}
+    set x(value){this._x = this.target.x}
+    set y(value){this._y = this.target.y}
+    get top(){return this.y - this.height/2}
+    get bottom(){return this.y + this.height/2}
+    get left(){return this.x - this.width/2}
+    get right(){return this.x + this.width/2}
 
     update() {
-        const targetX = this.target.x - this.offsetX;
-        const targetY = this.target.y - this.offsetY;
-
-        // Используем линейную интерполяцию для плавного перемещения камеры
-        this.x += (targetX - this.x) * this.smoothness;
-        this.y += (targetY - this.y) * this.smoothness;
-
-        // Проверяем, чтобы камера не выходила за границы карты
-        if (this.x + this.width > this.gameMap.width) {
-            this.x = this.gameMap.width - this.width;
-        }
-
-        if (this.y + this.height > this.gameMap.height) {
-            this.y = this.gameMap.height - this.height;
-        }
+        this._x = this.lerp(this._x, this.target.x, this.smoothness);
+        this._y = this.lerp(this._y, this.target.y, this.smoothness);
     }
 
     getVisibleObjects(objects) {
@@ -1012,10 +1007,10 @@ class Camera {
             let visible = false;
             for (const vertex of vertices) {
                 if (
-                    vertex.x >= this.x &&
-                    vertex.x <= this.x + this.width &&
-                    vertex.y >= this.y &&
-                    vertex.y <= this.y + this.height
+                    vertex.x >= this.left &&
+                    vertex.x <= this.right &&
+                    vertex.y >= this.top &&
+                    vertex.y <= this.bottom
                 ) {
                     visible = true;
                     break;
@@ -1048,8 +1043,6 @@ class Canvas {
         this.visualEffects.updateEffects()
     }
 }
-
-
 
 
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
@@ -1127,21 +1120,34 @@ let walls = [];
 loadLevel(levelGrid)
 
 
+window.addEventListener('resize', () => {
+    resize()
+});
+function resize(){
+    const aspectRatio = 4 / 3;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
 
+    // Adjust the canvas size to maintain a 4:3 aspect ratio
+    if (width / height > aspectRatio) {
+        width = height * aspectRatio;
+    } else {
+        height = width / aspectRatio;
+    }
 
+    canvas.width = width;
+    canvas.height = height;
 
-
-
-function resetGame() {
-    
+    const scale = Math.min(canvas.width / BASE_WIDTH, canvas.height / BASE_HEIGHT);
+    console.log(scale)
+    if(scale < 1){
+        ctx.imageSmoothingEnabled = true; // turn it on for low res screens
+    }else{
+        ctx.imageSmoothingEnabled = false; // turn it off for high res screens.
+    }
+    ctx.scale(scale, scale);
 }
 
-// Функция для сброса игрового таймера
-gameTimer.reset = function() {
-    this.startTime = performance.now();
-    this.pausedTime = 0;
-    this.isPaused = false;
-};
 
 
 
@@ -1162,9 +1168,8 @@ let lastTimestamp = performance.now();
 let deltaTime = 0;
 
 function gameLoop() {
-
     if (!paused) {
-        const timestamp = performance.now()
+        const timestamp = performance.now();
         deltaTime = (timestamp - lastTimestamp) / 32; // Relative to my developing pc 30 fps
         lastTimestamp = timestamp;
         updateAndDrawGame();
@@ -1189,7 +1194,11 @@ function gameLoop() {
 }
 
 
+
 function updateAndDrawGame() {
+
+
+
     gameTimer.start();
     // enemy.attack()
     canvasObj.draw(ctx, camera);
@@ -1261,4 +1270,4 @@ document.addEventListener('keydown', (event) => {
 
 gameLoop();
 
-export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, resetGame}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas}

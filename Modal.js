@@ -1,4 +1,4 @@
-import { camera, canvas, resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, resetGame} from "./main.js"
+import { camera, canvas, resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug} from "./main.js"
 
 class Modal{
     constructor(x, y, width, height){
