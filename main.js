@@ -524,13 +524,13 @@ class Weapon {
     }
 
     canAttack() {
-        const currentTime = Date.now();
+        const currentTime = gameTimer.getTime();
         return (currentTime - this.lastAttackTime) >= this.cooldown && entities.includes(this.owner);
     }
 
     attack(x, y, angle, entitySize) {
         if (this.canAttack()) {
-            this.lastAttackTime = Date.now();
+            this.lastAttackTime = gameTimer.getTime();
             this.shoot(x, y, angle, entitySize);
             return true;
         }
@@ -973,7 +973,7 @@ class Canvas {
 
 
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
-    return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
+    return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
 const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
     return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
