@@ -138,7 +138,7 @@ const createPauseMenu = () => {
     let continueButton = new Button(150, 80, 200, 50, 'CONTINUE', () => resumeGame() & pauseMenu.hide());
     let backButton = new Button(150, 350, 200, 50, 'BACK', () => resumeGame() & pauseMenu.hide());
     let debugButton = new Button(150, 150, 200, 50, 'DEBUG', () => switchDebug() & resumeGame() & pauseMenu.hide());
-    let resetButton = new Button(150, 220, 200, 50, 'RESET', () => resetGame())
+    let resetButton = new Button(150, 220, 200, 50, 'RESET', () => console.log('you gay'))
     pauseMenu.addButton(continueButton);
     pauseMenu.addButton(backButton);
     pauseMenu.addButton(debugButton);

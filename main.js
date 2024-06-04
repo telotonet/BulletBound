@@ -109,7 +109,7 @@ class GameObject extends BaseDebugger {
     }
 }
 
-export default class Collider {
+class Collider {
     constructor(owner, x, y, width, height, angle = 0) {
         this.owner = owner;
         this.x = x;
@@ -263,6 +263,33 @@ export default class Collider {
         collisionManager.removeCollider(this);
     }
 }
+class CustomCollider extends Collider {
+    constructor(owner, vertices, angle = 0) {
+        // Вызываем конструктор родительского класса с заданными вершинами
+        super(owner, 0, 0, 0, 0, angle);
+        this.vertices = vertices;
+    }
+
+    getVertices() {
+        // Возвращаем переданный массив вершин
+        return this.vertices;
+    }
+
+    // Метод getAxes() останется тем же, так как оси могут быть вычислены для любого многоугольника
+
+    // Отрисовка многоугольного коллайдера
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX + this.vertices[0].x, this.owner.DrawY + this.vertices[0].y);
+        for (let i = 1; i < this.vertices.length; i++) {
+            ctx.lineTo(this.owner.DrawX + this.vertices[i].x, this.owner.DrawY + this.vertices[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgb(13, 207, 0)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
 
 class CollisionManager {
     constructor() {
@@ -386,10 +413,6 @@ class Entity extends GameObject {
     onCollisionWithWall(wall) {
         CollisionUtils.rigidBody(this, wall, 1)
     }
-
-    onCollisionWithEntity(entity){
-        CollisionUtils.rigidBody(entity, this, 2)
-    }
 }
 
 class Player extends Entity {
@@ -415,7 +438,6 @@ class Player extends Entity {
         canvas.addEventListener('mousemove', (event) => {
             this.mouseX = event.clientX + camera.left - canvas.getBoundingClientRect().left;
             this.mouseY = event.clientY + camera.top - canvas.getBoundingClientRect().top;
-            console.log(camera.x)
             this.angle = Math.atan2(this.mouseY - this.y, this.mouseX - this.x);
         });
     }
@@ -501,22 +523,6 @@ class Wall extends GameObject {
         if (index !== -1) {
             walls.splice(index, 1);
         }
-    }
-}
-
-class SlimeWall extends Wall {
-    onCollisionWithEntity(entity) {
-        // entity.speed *= 0.99;
-    }
-
-    handleCollision(other) {
-        // Specific handling for SlimeWall collisions
-    }
-    onEntityEnter(entity){
-        entity.speed *= 0.5
-    }
-    onEntityLeave(entity){
-        entity.speed *= 2   
     }
 }
 
@@ -1045,6 +1051,7 @@ class Canvas {
 }
 
 
+
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
     return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
@@ -1067,6 +1074,7 @@ const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 const gameMap = new GameMap(Infinity, Infinity)
 const gameTimer = new GameTimer();
 const updater = new Updater()
+const collisionManager = new CollisionManager();
 const camera = new Camera(ctx, gameMap, {x:0, y:0}, BASE_WIDTH, BASE_HEIGHT, 0.1)
 const renderer = new Renderer(ctx, camera)
 
@@ -1076,9 +1084,8 @@ const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerPro
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 
-const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 52, 52, 5, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 32, 32, 5, 100, playerWeapon);
 const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
 
