@@ -1,5 +1,6 @@
 import CollisionUtils from './CollisionUtils.js';
 import CollisionHandler from './CollisionHandler.js'
+import {Menu, Button, initializePauseMenu} from './Modal.js'
 
 class Health {
     constructor(entity, maxHealth) {
@@ -70,11 +71,11 @@ class GameObject extends BaseDebugger {
     }
 
     get DrawX() {
-        return this.x - camera.x;
+        return this.x - camera.left;
     }
 
     get DrawY() {
-        return this.y - camera.y;
+        return this.y - camera.top;
     }
     update(){
         this.x += this.dx * deltaTime
@@ -108,7 +109,7 @@ class GameObject extends BaseDebugger {
     }
 }
 
-export default class Collider {
+class Collider {
     constructor(owner, x, y, width, height, angle = 0) {
         this.owner = owner;
         this.x = x;
@@ -164,13 +165,31 @@ export default class Collider {
     }
 
     drawDirection(ctx, dx, dy) {
+        const length = 5;
+        
+        // Рисуем общую скорость (зеленая стрелка)
         ctx.beginPath();
         ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        const length = 15;
-        const endX = this.owner.DrawX + dx * length;
-        const endY = this.owner.DrawY + dy * length;
-        ctx.lineTo(endX, endY);
+        ctx.lineTo(this.owner.DrawX + dx * 4, this.owner.DrawY + dy * 4);
         ctx.strokeStyle = "rgb(13, 207, 0)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+
+        // Рисуем скорость по оси X (синяя стрелка)
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        ctx.lineTo(this.owner.DrawX + dx * length, this.owner.DrawY);
+        ctx.strokeStyle = "rgb(61, 65, 255)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.closePath();
+
+        // Рисуем скорость по оси Y (красная стрелка)
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
+        ctx.lineTo(this.owner.DrawX, this.owner.DrawY + dy * length);
+        ctx.strokeStyle = "rgb(252, 43, 214)";
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.closePath();
@@ -184,7 +203,7 @@ export default class Collider {
     
         ctx.beginPath();
         for (let i = 0; i < vertices.length; i++) {
-            ctx.lineTo(vertices[i].x - camera.x, vertices[i].y - camera.y);
+            ctx.lineTo(vertices[i].x - camera.left, vertices[i].y - camera.top);
         }
         ctx.closePath();
         ctx.stroke();
@@ -244,6 +263,33 @@ export default class Collider {
         collisionManager.removeCollider(this);
     }
 }
+class CustomCollider extends Collider {
+    constructor(owner, vertices, angle = 0) {
+        // Вызываем конструктор родительского класса с заданными вершинами
+        super(owner, 0, 0, 0, 0, angle);
+        this.vertices = vertices;
+    }
+
+    getVertices() {
+        // Возвращаем переданный массив вершин
+        return this.vertices;
+    }
+
+    // Метод getAxes() останется тем же, так как оси могут быть вычислены для любого многоугольника
+
+    // Отрисовка многоугольного коллайдера
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(this.owner.DrawX + this.vertices[0].x, this.owner.DrawY + this.vertices[0].y);
+        for (let i = 1; i < this.vertices.length; i++) {
+            ctx.lineTo(this.owner.DrawX + this.vertices[i].x, this.owner.DrawY + this.vertices[i].y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgb(13, 207, 0)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+}
 
 class CollisionManager {
     constructor() {
@@ -272,7 +318,9 @@ class CollisionManager {
         }
         return totalCollisions;
     }
-
+    clearColliders(){
+        this.colliders = []
+    }
     update() {
         this.getColliders().forEach(collider => {
             collider.update()
@@ -311,6 +359,7 @@ class Entity extends GameObject {
         this.weapon.owner = this
         this.health = new Health(this, health);
         this.visualEffects = new VisualEffectStorage();
+        this.spawn()
     }
 
     draw(ctx, camera) {
@@ -343,6 +392,10 @@ class Entity extends GameObject {
         this.weapon.attack(this.x, this.y, this.angle, entitySize);
     }
 
+    spawn(){
+        entities.push(this)
+    }
+
     die() {
         this.visualEffects.clearEffects();
         this.weapon.destroy()
@@ -359,10 +412,6 @@ class Entity extends GameObject {
 
     onCollisionWithWall(wall) {
         CollisionUtils.rigidBody(this, wall, 1)
-    }
-
-    onCollisionWithEntity(entity){
-        CollisionUtils.rigidBody(entity, this, 2)
     }
 }
 
@@ -387,8 +436,8 @@ class Player extends Entity {
             this.keysPressed[event.key.toLowerCase()] = false;
         });
         canvas.addEventListener('mousemove', (event) => {
-            this.mouseX = event.clientX + camera.x - canvas.getBoundingClientRect().left;
-            this.mouseY = event.clientY + camera.y - canvas.getBoundingClientRect().top;
+            this.mouseX = event.clientX + camera.left - canvas.getBoundingClientRect().left;
+            this.mouseY = event.clientY + camera.top - canvas.getBoundingClientRect().top;
             this.angle = Math.atan2(this.mouseY - this.y, this.mouseX - this.x);
         });
     }
@@ -454,6 +503,7 @@ class Wall extends GameObject {
         this.width = width;
         this.height = height;
         this.visualEffects = new VisualEffectStorage();
+        walls.push(this);
     }
 
     draw(ctx) {
@@ -476,22 +526,57 @@ class Wall extends GameObject {
     }
 }
 
-class SlimeWall extends Wall {
-    onCollisionWithEntity(entity) {
-        // entity.speed *= 0.99;
+class FractureWall extends Wall {
+    constructor(x, y, width, height){
+        super(x, y, width, height)
     }
 
-    handleCollision(other) {
-        // Specific handling for SlimeWall collisions
+    splitWall() {
+        // Проверяем размер стенки для завершения рекурсии
+        if (this.width < 15 || this.height < 15) {
+            return;
+        }
+
+        const dx = Math.random()
+        const dy = Math.random()
+        this.getSubWalls().forEach(subWall => {
+            const fractWall = new FractureWall(subWall[0].x, subWall[0].y, this.width / 2, this.height / 2);
+            fractWall.dx = dx * 0.1
+            fractWall.dy = dy * 0.1
+            fractWall.splitWall()
+            this.destroy()
+        });
+
     }
-    onEntityEnter(entity){
-        entity.speed *= 0.5
+
+    getSubWalls() {
+        const x = this.x;
+        const y = this.y;
+        const width = this.width / 2;
+        const height = this.height / 2;
+
+        return [
+            [{ x: x - width / 2, y: y - height / 2 }], // Top-left quadrant
+            [{ x: x + width / 2, y: y - height / 2 }], // Top-right quadrant
+            [{ x: x - width / 2, y: y + height / 2 }], // Bottom-left quadrant
+            [{ x: x + width / 2, y: y + height / 2 }]  // Bottom-right quadrant
+        ];
     }
-    onEntityLeave(entity){
-        entity.speed *= 2   
+
+    onProjectileEnter(projectile) {
+        this.destroy();
+        projectile.destroy();
+        this.splitWall();
+    }
+    onFractureWallEnter(wall){
+    }
+    onCollisionWithFractureWall(wall){
+        CollisionUtils.rigidBody(wall, this, 0.1)
+    }
+    onCollisionWithPlayer(entity){
+        CollisionUtils.rigidBody(this, entity)
     }
 }
-
 
 
 
@@ -811,6 +896,8 @@ class DeathEffect extends VisualEffect {
 
 
 
+
+
 class Renderer {
     constructor(ctx, camera) {
         this.ctx = ctx;
@@ -896,31 +983,25 @@ class Camera {
         this.height = height;
         this.width = width;
         this.target = target;
-        this.centerX = this.target.x;
-        this.centerY = this.target.y;
-        this.x = 0; // Изменяем начальные значения координат камеры
-        this.y = 0;
-        this.offsetX = this.width/2; // Смещение для центрирования игрока на экране
-        this.offsetY = this.height/2;
+        this._x = 0;
+        this._y = 0;
         this.smoothness = smoothness
     }
+    lerp(start, end, t) {
+        return start + (end - start) * t;
+    }
+    get x(){return this._x}
+    get y(){return this._y}
+    set x(value){this._x = this.target.x}
+    set y(value){this._y = this.target.y}
+    get top(){return this.y - this.height/2}
+    get bottom(){return this.y + this.height/2}
+    get left(){return this.x - this.width/2}
+    get right(){return this.x + this.width/2}
 
     update() {
-        const targetX = this.target.x - this.offsetX;
-        const targetY = this.target.y - this.offsetY;
-
-        // Используем линейную интерполяцию для плавного перемещения камеры
-        this.x += (targetX - this.x) * this.smoothness;
-        this.y += (targetY - this.y) * this.smoothness;
-
-        // Проверяем, чтобы камера не выходила за границы карты
-        if (this.x + this.width > this.gameMap.width) {
-            this.x = this.gameMap.width - this.width;
-        }
-
-        if (this.y + this.height > this.gameMap.height) {
-            this.y = this.gameMap.height - this.height;
-        }
+        this._x = this.lerp(this._x, this.target.x, this.smoothness);
+        this._y = this.lerp(this._y, this.target.y, this.smoothness);
     }
 
     getVisibleObjects(objects) {
@@ -932,10 +1013,10 @@ class Camera {
             let visible = false;
             for (const vertex of vertices) {
                 if (
-                    vertex.x >= this.x &&
-                    vertex.x <= this.x + this.width &&
-                    vertex.y >= this.y &&
-                    vertex.y <= this.y + this.height
+                    vertex.x >= this.left &&
+                    vertex.x <= this.right &&
+                    vertex.y >= this.top &&
+                    vertex.y <= this.bottom
                 ) {
                     visible = true;
                     break;
@@ -971,7 +1052,6 @@ class Canvas {
 
 
 
-
 const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
     return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
@@ -982,6 +1062,8 @@ const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
 
 let projectiles = []
 let weapons = []
+let modals = []
+let entities = []
 
 const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
@@ -992,6 +1074,7 @@ const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
 const gameMap = new GameMap(Infinity, Infinity)
 const gameTimer = new GameTimer();
 const updater = new Updater()
+const collisionManager = new CollisionManager();
 const camera = new Camera(ctx, gameMap, {x:0, y:0}, BASE_WIDTH, BASE_HEIGHT, 0.1)
 const renderer = new Renderer(ctx, camera)
 
@@ -1001,12 +1084,10 @@ const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerPro
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 
-const collisionManager = new CollisionManager();
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 52, 52, 5, 100, playerWeapon);
-const enemy = new Entity(500, 400, 0, 30, 20, 5, 100, enemyWeapon)
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 32, 32, 5, 100, playerWeapon);
+const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
-const entities = [player, enemy]
 
 
 
@@ -1031,28 +1112,48 @@ const levelGrid = [
 
 
 function loadLevel(levelData) {
-    const walls = [];
     const tileSize = 50;
 
     levelData.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
             if (cell === 1) {
-                const wall = new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
-                walls.push(wall);
-            }
+                new Wall(colIndex * tileSize, rowIndex * tileSize, tileSize, tileSize);
+                            }
         });
     });
 
-    return walls;
 }
-const walls = loadLevel(levelGrid);
+let walls = [];
+loadLevel(levelGrid)
 
 
+window.addEventListener('resize', () => {
+    resize()
+});
+function resize(){
+    const aspectRatio = 4 / 3;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
 
+    // Adjust the canvas size to maintain a 4:3 aspect ratio
+    if (width / height > aspectRatio) {
+        width = height * aspectRatio;
+    } else {
+        height = width / aspectRatio;
+    }
 
+    canvas.width = width;
+    canvas.height = height;
 
-
-
+    const scale = Math.min(canvas.width / BASE_WIDTH, canvas.height / BASE_HEIGHT);
+    console.log(scale)
+    if(scale < 1){
+        ctx.imageSmoothingEnabled = true; // turn it on for low res screens
+    }else{
+        ctx.imageSmoothingEnabled = false; // turn it off for high res screens.
+    }
+    ctx.scale(scale, scale);
+}
 
 
 
@@ -1075,7 +1176,7 @@ let deltaTime = 0;
 
 function gameLoop() {
     if (!paused) {
-        const timestamp = performance.now()
+        const timestamp = performance.now();
         deltaTime = (timestamp - lastTimestamp) / 32; // Relative to my developing pc 30 fps
         lastTimestamp = timestamp;
         updateAndDrawGame();
@@ -1092,14 +1193,21 @@ function gameLoop() {
         document.getElementById('object-count').textContent = `Objects: ` + JSON.stringify(BaseDebugger.getObjectClassCount(), null, 2);
         document.getElementById('timer').textContent = `Timer: ` + JSON.stringify(gameTimer.getTime(), null, 2);
     }
-
+    modals.forEach(modal => {
+        modal.draw(ctx);
+        modal.update();
+    });
     requestId = requestAnimationFrame(gameLoop);
 }
 
 
+
 function updateAndDrawGame() {
+
+
+
     gameTimer.start();
-    // Отрисовка объектов с учетом масштабирования
+    // enemy.attack()
     canvasObj.draw(ctx, camera);
     updater.update(BaseDebugger.objects)
     updater.update([camera, gameMap]);
@@ -1118,8 +1226,9 @@ function updateAndDrawGame() {
 }
 
 function pauseGame() {
+    let framesThisSecond = 0
+
     paused = true;
-    cancelAnimationFrame(requestId);
     gameTimer.pause();
 }
 
@@ -1128,21 +1237,44 @@ function resumeGame() {
         paused = false;
         lastTimestamp = performance.now()
         gameTimer.start();
-        gameLoop();
     }
 }
 
-// Пример использования
-document.addEventListener('keydown', (event) => {
-    if (event.key === 'p') {
-        if (!paused){
+function switchPause(){
+    const currentTime = performance.now();
+    if (currentTime - lastPauseToggleTime > PAUSE_TOGGLE_COOLDOWN) {
+        if (!paused) {
+            pauseMenu.show()
             pauseGame();
         } else {
+            pauseMenu.hide()
             resumeGame();
         }
+        lastPauseToggleTime = currentTime;
+    }
+}
+function switchDebug(){
+    switch(debug){
+        case 0:
+            debug = 1
+            break
+        case 1:
+            debug = 0
+            break
+    }
+}
+
+let pauseMenu = initializePauseMenu();
+let lastPauseToggleTime = 0;
+
+
+const PAUSE_TOGGLE_COOLDOWN = 1000;
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        switchPause()
     }
 });
 
 gameLoop();
 
-export {Collider, deltaTime}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas}
