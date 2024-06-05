@@ -263,6 +263,7 @@ class Collider {
         collisionManager.removeCollider(this);
     }
 }
+
 class CustomCollider extends Collider {
     constructor(owner, vertices, angle = 0) {
         // Вызываем конструктор родительского класса с заданными вершинами
@@ -411,7 +412,10 @@ class Entity extends GameObject {
     }
 
     onCollisionWithWall(wall) {
-        CollisionUtils.rigidBody(this, wall, 1)
+        CollisionUtils.rigidBody(this, wall)
+    }
+    onCollisionWithEntity(entity) {
+        CollisionUtils.rigidBody(entity, this)
     }
 }
 
@@ -772,7 +776,6 @@ class VisualEffect extends GameObject{
         this.elapsedTime = 0;
         this.startTime =  gameTimer.getTime();
     }
-    createCollider(){}
     onCreate(){}
 
     draw(ctx) {
@@ -804,7 +807,6 @@ class DamageNumberEffect extends VisualEffect {
         this.fontSize = fontSize
         this.onCreate()
     }
-
 
     onCreate(){
         const existingEffectIndex = this.entity.visualEffects.getEffects().findIndex(e => e instanceof DamageNumberEffect);
@@ -985,7 +987,10 @@ class Camera {
         this.target = target;
         this._x = 0;
         this._y = 0;
-        this.smoothness = smoothness
+        this.smoothness = smoothness;
+
+        this.shakeIntensity = 0;
+        this.lastShakeTime
     }
     lerp(start, end, t) {
         return start + (end - start) * t;
@@ -999,10 +1004,26 @@ class Camera {
     get left(){return this.x - this.width/2}
     get right(){return this.x + this.width/2}
 
+
     update() {
-        this._x = this.lerp(this._x, this.target.x, this.smoothness);
-        this._y = this.lerp(this._y, this.target.y, this.smoothness);
+        this._x = this.lerp(this.x, this.target.x, this.smoothness)
+        this._y = this.lerp(this.y, this.target.y, this.smoothness)
+        this.shake()
     }
+    shake(){
+        if (this.shakeIntensity > 0) {
+            this._x += (Math.random() - 0.5) * this.shakeIntensity
+            this._y += (Math.random() - 0.5) * this.shakeIntensity
+        }
+    }
+
+    startShake(intensity){
+        this.shakeIntensity = intensity
+    }
+    stopShake(){
+        this.shakeIntensity = 0
+    }
+
 
     getVisibleObjects(objects) {
         const visibleObjects = [];
@@ -1085,7 +1106,7 @@ const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProje
 
 
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 32, 32, 5, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 35, 35, 5, 100, playerWeapon);
 const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
 
@@ -1146,7 +1167,6 @@ function resize(){
     canvas.height = height;
 
     const scale = Math.min(canvas.width / BASE_WIDTH, canvas.height / BASE_HEIGHT);
-    console.log(scale)
     if(scale < 1){
         ctx.imageSmoothingEnabled = true; // turn it on for low res screens
     }else{
@@ -1154,9 +1174,6 @@ function resize(){
     }
     ctx.scale(scale, scale);
 }
-
-
-
 
 // DEBUG
 let debug = 1
@@ -1210,13 +1227,11 @@ function updateAndDrawGame() {
     // enemy.attack()
     canvasObj.draw(ctx, camera);
     updater.update(BaseDebugger.objects)
-    updater.update([camera, gameMap]);
-    updater.update([canvasObj]);
-    gameMap.draw(ctx, camera);
-    renderer.draw(projectiles);
-    renderer.draw(walls);
-    renderer.draw(entities);
+    updater.update([camera, gameMap, canvasObj]);
     collisionManager.update();
+
+    gameMap.draw(ctx, camera);
+    renderer.draw(BaseDebugger.objects);
 
     if (debug) {
         collisionManager.getColliders().forEach(collider => {
@@ -1243,12 +1258,13 @@ function resumeGame() {
 function switchPause(){
     const currentTime = performance.now();
     if (currentTime - lastPauseToggleTime > PAUSE_TOGGLE_COOLDOWN) {
-        if (!paused) {
-            pauseMenu.show()
-            pauseGame();
-        } else {
-            pauseMenu.hide()
-            resumeGame();
+        switch (paused){
+            case false:
+                pauseMenu.show()
+                pauseGame(); break
+            case true:
+                pauseMenu.hide()
+                resumeGame(); break
         }
         lastPauseToggleTime = currentTime;
     }
@@ -1256,11 +1272,9 @@ function switchPause(){
 function switchDebug(){
     switch(debug){
         case 0:
-            debug = 1
-            break
+            debug = 1; break
         case 1:
-            debug = 0
-            break
+            debug = 0; break
     }
 }
 
