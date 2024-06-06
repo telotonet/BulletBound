@@ -436,21 +436,6 @@ class Projectile extends GameObject {
     }
 }
 
-class ImpulseProjectile extends Projectile{
-    constructor(x, y, speed, angle, width, height, damage, color = 'blue', owner){
-        super(x, y, speed, angle, width, height, damage, color, owner)
-    }
-    onCollisionWithProjectile(other){
-        CollisionUtils.rigidBody(this, other)
-    }
-    onCollisionWithImpulseProjectile(other){
-        CollisionUtils.rigidBody(this, other)
-    }
-    onCollisionWithWall(other){
-        CollisionUtils.rigidBody(this, other, 1)
-    }
-
-}
 
 
 
@@ -807,7 +792,7 @@ const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
     return new Projectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
 };
 const createEnemyProjectile = (x, y, speed, angle, damage, owner) => {
-    return new ImpulseProjectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
+    return new Projectile(x, y, speed, angle, 15, 15, damage, 'blue', owner); // Произвольные параметры
 };
 
 
@@ -830,13 +815,13 @@ const camera = new Camera(ctx, gameMap, {x:0, y:0}, BASE_WIDTH, BASE_HEIGHT, 0.1
 const renderer = new Renderer(ctx, camera)
 
 
-const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 3, createPlayerProjectile);
+const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
 
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 8, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100, playerWeapon);
 const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
 
@@ -910,7 +895,7 @@ let debug = 1
 
 // FPS COUNTER
 let fps = 0;
-let lastFpsUpdate = performance.now();
+let lastFpsUpdate = gameTimer.getTime();
 let framesThisSecond = 0;
 
 // PAUSE
@@ -918,18 +903,18 @@ let requestId;
 let paused = false;
 
 // GAME TIMER
-let lastTimestamp = performance.now();
+let lastTimestamp = gameTimer.getTime();
 let deltaTime = 0;
 let wall = new Wall(500, 300, 200, 30)
 function gameLoop() {
-    wall.angle += 0.05
     if (!paused) {
+        wall.angle += 0.05
         const timestamp = performance.now();
         deltaTime = (timestamp - lastTimestamp) / 33; // Relative to my developing pc 30 fps
         lastTimestamp = timestamp;
         updateAndDrawGame();
 
-        const now = performance.now();
+        const now = gameTimer.getTime();
         framesThisSecond++;
         fps = Math.round((framesThisSecond * 1000) / (now - lastFpsUpdate));
         if (now - lastFpsUpdate >= 1000) {
@@ -1000,6 +985,7 @@ function switchPause(){
         lastPauseToggleTime = currentTime;
     }
 }
+
 function switchDebug(){
     switch(debug){
         case 0:
