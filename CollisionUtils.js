@@ -1,4 +1,5 @@
-import { Collider, deltaTime } from '/main.js';
+import {deltaTime } from '/main.js';
+import { Collider } from './Collider.js';
 
 export default class CollisionUtils {
     static rigidBody(movableObj, rigidObj, smoothness = 1) {
@@ -43,8 +44,8 @@ export default class CollisionUtils {
         }
 
         if (minOverlap > 0) {
-            movableObj.x += correctionX * deltaTime;
-            movableObj.y += correctionY * deltaTime;
+            movableObj.x += correctionX ;
+            movableObj.y += correctionY ;
 
             // Обновляем коллайдер после корректировки позиции
             colliderA.update();

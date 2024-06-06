@@ -1,5 +1,5 @@
 import CollisionUtils from './CollisionUtils.js';
-import CollisionHandler from './CollisionHandler.js'
+import {Collider, CollisionHandler, CollisionManager} from './Collider.js'
 import {Menu, Button, initializePauseMenu} from './Modal.js'
 
 class Health {
@@ -49,7 +49,7 @@ class BaseDebugger {
             }
         }
         classCount.colliders = collisionManager.getColliders().length+1;
-        classCount.collisions = collisionManager.getTotalCollisions();
+        // classCount.collisions = collisionManager.getTotalCollisions();
         return classCount;
     }
     static getObjectsByType(type) {
@@ -109,233 +109,9 @@ class GameObject extends BaseDebugger {
     }
 }
 
-class Collider {
-    constructor(owner, x, y, width, height, angle = 0) {
-        this.owner = owner;
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.angle = angle; // Угол коллайдера
-        this.collidingWith = new Set();
-        collisionManager.addCollider(this);
-    }
-
-    static project(vertices, axis) {
-        let min = Infinity;
-        let max = -Infinity;
-        for (let vertex of vertices) {
-            const projection = vertex.x * axis.x + vertex.y * axis.y;
-            if (projection < min) min = projection;
-            if (projection > max) max = projection;
-        }
-        return { min, max };
-    }
-
-    static overlap(projA, projB) {
-        return projA.max >= projB.min && projB.max >= projA.min;
-    }
-
-    getVertices() {
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-        const cosA = Math.cos(this.angle);
-        const sinA = Math.sin(this.angle);
-        return [
-            { x: this.x + cosA * -hw - sinA * -hh, y: this.y + sinA * -hw + cosA * -hh },
-            { x: this.x + cosA * hw - sinA * -hh, y: this.y + sinA * hw + cosA * -hh },
-            { x: this.x + cosA * hw - sinA * hh, y: this.y + sinA * hw + cosA * hh },
-            { x: this.x + cosA * -hw - sinA * hh, y: this.y + sinA * -hw + cosA * hh }
-        ];
-    }
-
-    getAxes() {
-        const vertices = this.getVertices()
-        const axes = [];
-        for (let i = 0; i < vertices.length; i++) {
-            const p1 = vertices[i];
-            const p2 = vertices[(i + 1) % vertices.length];
-            const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
-            const normal = { x: -edge.y, y: edge.x };
-            // Нормализуем ось
-            const length = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
-            axes.push({ x: normal.x / length, y: normal.y / length });
-        }
-        return axes;
-    }
-
-    drawDirection(ctx, dx, dy) {
-        const length = 5;
-        
-        // Рисуем общую скорость (зеленая стрелка)
-        ctx.beginPath();
-        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        ctx.lineTo(this.owner.DrawX + dx * 4, this.owner.DrawY + dy * 4);
-        ctx.strokeStyle = "rgb(13, 207, 0)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.closePath();
-
-        // Рисуем скорость по оси X (синяя стрелка)
-        ctx.beginPath();
-        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        ctx.lineTo(this.owner.DrawX + dx * length, this.owner.DrawY);
-        ctx.strokeStyle = "rgb(61, 65, 255)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.closePath();
-
-        // Рисуем скорость по оси Y (красная стрелка)
-        ctx.beginPath();
-        ctx.moveTo(this.owner.DrawX, this.owner.DrawY);
-        ctx.lineTo(this.owner.DrawX, this.owner.DrawY + dy * length);
-        ctx.strokeStyle = "rgb(252, 43, 214)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.closePath();
-    }
-    draw(ctx) {
-        const vertices = this.getVertices();
-        this.drawDirection(ctx, this.owner.dx, this.owner.dy)
-    
-        ctx.strokeStyle = 'rgb(13, 207, 0)';
-        ctx.lineWidth = 2;
-    
-        ctx.beginPath();
-        for (let i = 0; i < vertices.length; i++) {
-            ctx.lineTo(vertices[i].x - camera.left, vertices[i].y - camera.top);
-        }
-        ctx.closePath();
-        ctx.stroke();
-    }
-    update() {
-        this.x = this.owner.x;
-        this.y = this.owner.y;
-        this.angle = this.owner.angle;
-    }
-
-    isCollidingWith(otherCollider) {
-        const verticesA = this.getVertices();
-        const verticesB = otherCollider.getVertices();
-
-        const axes = [...this.getAxes(), ...otherCollider.getAxes()];
-
-        for (let axis of axes) {
-            const projectionA = Collider.project(verticesA, axis);
-            const projectionB = Collider.project(verticesB, axis);
-
-            if (!Collider.overlap(projectionA, projectionB)) {
-                return false;
-            }
-        }
-        return true;
-    }
 
 
 
-    handleCollision(otherCollider) {
-        const isColliding = this.isCollidingWith(otherCollider);
-
-        if (isColliding && !this.collidingWith.has(otherCollider)) {
-            this.collidingWith.add(otherCollider);
-            otherCollider.collidingWith.add(this);
-            CollisionHandler.onEnter(this.owner, otherCollider.owner);
-        } else if (!isColliding && this.collidingWith.has(otherCollider)) {
-            this.collidingWith.delete(otherCollider);
-            otherCollider.collidingWith.delete(this);
-            CollisionHandler.onLeave(this.owner, otherCollider.owner);
-        }
-
-        if (isColliding) {
-            CollisionHandler.onCollision(this.owner, otherCollider.owner);
-        }
-    }
-
-
-    removeSelfFromColliders() {
-        for (const otherCollider of this.collidingWith) {
-            otherCollider.collidingWith.delete(this);
-        }
-    }
-
-    destroy() {
-        this.removeSelfFromColliders();
-        collisionManager.removeCollider(this);
-    }
-}
-
-class CustomCollider extends Collider {
-    constructor(owner, vertices, angle = 0) {
-        // Вызываем конструктор родительского класса с заданными вершинами
-        super(owner, 0, 0, 0, 0, angle);
-        this.vertices = vertices;
-    }
-
-    getVertices() {
-        // Возвращаем переданный массив вершин
-        return this.vertices;
-    }
-
-    // Метод getAxes() останется тем же, так как оси могут быть вычислены для любого многоугольника
-
-    // Отрисовка многоугольного коллайдера
-    draw(ctx) {
-        ctx.beginPath();
-        ctx.moveTo(this.owner.DrawX + this.vertices[0].x, this.owner.DrawY + this.vertices[0].y);
-        for (let i = 1; i < this.vertices.length; i++) {
-            ctx.lineTo(this.owner.DrawX + this.vertices[i].x, this.owner.DrawY + this.vertices[i].y);
-        }
-        ctx.closePath();
-        ctx.strokeStyle = 'rgb(13, 207, 0)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
-}
-
-class CollisionManager {
-    constructor() {
-        this.colliders = [];
-    }
-
-    addCollider(collider) {
-        this.colliders.push(collider);
-    }
-
-    removeCollider(collider) {
-        const index = this.colliders.indexOf(collider);
-        if (index > -1) {
-            this.colliders.splice(index, 1);
-        }
-    }
-
-    getColliders() {
-        return this.colliders;
-    }
-
-    getTotalCollisions() {
-        let totalCollisions = 0;
-        for (const collider of this.colliders) {
-            totalCollisions += collider.collidingWith.size;
-        }
-        return totalCollisions;
-    }
-    clearColliders(){
-        this.colliders = []
-    }
-    update() {
-        this.getColliders().forEach(collider => {
-            collider.update()
-            
-        });
-        for (let i = 0; i < this.colliders.length; i++) {
-            for (let j = i + 1; j < this.colliders.length; j++) {
-                const colliderA = this.colliders[i];
-                const colliderB = this.colliders[j];
-                colliderA.handleCollision(colliderB);
-            }
-        }
-    }
-}
 
 
 
@@ -511,13 +287,20 @@ class Wall extends GameObject {
     }
 
     draw(ctx) {
+        ctx.save();
+        // Переместим контекст к центру объекта
+        ctx.translate(this.DrawX, this.DrawY);
+        // Выполним вращение
+        ctx.rotate(this.angle);
+        // Нарисуем прямоугольник с центром в точке (0,0)
         ctx.fillStyle = 'black';
-        ctx.fillRect(this.DrawX - this.width / 2, this.DrawY - this.height / 2, this.width, this.height);
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        ctx.restore();
         this.visualEffects.drawEffects();
     }
 
     update() {
-        super.update()
+        super.update();
         this.visualEffects.updateEffects();
     }
 
@@ -530,57 +313,6 @@ class Wall extends GameObject {
     }
 }
 
-class FractureWall extends Wall {
-    constructor(x, y, width, height){
-        super(x, y, width, height)
-    }
-
-    splitWall() {
-        // Проверяем размер стенки для завершения рекурсии
-        if (this.width < 15 || this.height < 15) {
-            return;
-        }
-
-        const dx = Math.random()
-        const dy = Math.random()
-        this.getSubWalls().forEach(subWall => {
-            const fractWall = new FractureWall(subWall[0].x, subWall[0].y, this.width / 2, this.height / 2);
-            fractWall.dx = dx * 0.1
-            fractWall.dy = dy * 0.1
-            fractWall.splitWall()
-            this.destroy()
-        });
-
-    }
-
-    getSubWalls() {
-        const x = this.x;
-        const y = this.y;
-        const width = this.width / 2;
-        const height = this.height / 2;
-
-        return [
-            [{ x: x - width / 2, y: y - height / 2 }], // Top-left quadrant
-            [{ x: x + width / 2, y: y - height / 2 }], // Top-right quadrant
-            [{ x: x - width / 2, y: y + height / 2 }], // Bottom-left quadrant
-            [{ x: x + width / 2, y: y + height / 2 }]  // Bottom-right quadrant
-        ];
-    }
-
-    onProjectileEnter(projectile) {
-        this.destroy();
-        projectile.destroy();
-        this.splitWall();
-    }
-    onFractureWallEnter(wall){
-    }
-    onCollisionWithFractureWall(wall){
-        CollisionUtils.rigidBody(wall, this, 0.1)
-    }
-    onCollisionWithPlayer(entity){
-        CollisionUtils.rigidBody(this, entity)
-    }
-}
 
 
 
@@ -719,8 +451,6 @@ class ImpulseProjectile extends Projectile{
     }
 
 }
-
-
 
 
 
@@ -1100,13 +830,13 @@ const camera = new Camera(ctx, gameMap, {x:0, y:0}, BASE_WIDTH, BASE_HEIGHT, 0.1
 const renderer = new Renderer(ctx, camera)
 
 
-const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
+const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 3, createPlayerProjectile);
 
 const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createEnemyProjectile);
 
 
 
-const player = new Player(canvas.width / 2, canvas.height / 2, 0, 35, 35, 5, 100, playerWeapon);
+const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 8, 100, playerWeapon);
 const enemy = new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
 
 
@@ -1190,11 +920,12 @@ let paused = false;
 // GAME TIMER
 let lastTimestamp = performance.now();
 let deltaTime = 0;
-
+let wall = new Wall(500, 300, 200, 30)
 function gameLoop() {
+    wall.angle += 0.05
     if (!paused) {
         const timestamp = performance.now();
-        deltaTime = (timestamp - lastTimestamp) / 32; // Relative to my developing pc 30 fps
+        deltaTime = (timestamp - lastTimestamp) / 33; // Relative to my developing pc 30 fps
         lastTimestamp = timestamp;
         updateAndDrawGame();
 
@@ -1291,4 +1022,4 @@ document.addEventListener('keydown', (event) => {
 
 gameLoop();
 
-export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, collisionManager}
