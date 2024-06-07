@@ -23,9 +23,10 @@ class Modal{
 }
 
 class Menu extends Modal{
-    constructor(x, y, width, height){
+    constructor(x, y, width, height, title){
         super(x, y, width, height)
         this.buttons = []
+        this.title = title
     }
 
     addButton(btn){
@@ -57,7 +58,7 @@ class Menu extends Modal{
         ctx.font = '24px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText('MENU', this.x, this.top + 10);
+        ctx.fillText(this.title, this.x, this.top + 10);
         this.drawButtons(ctx)
     }
     update(){

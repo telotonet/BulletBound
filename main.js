@@ -9,7 +9,7 @@ import { Player, Entity } from './Entity.js'
 import { Wall } from './Wall.js'
 import { BaseDebugger } from './GameObject.js';
 import { Projectile } from './Projectile.js'
-
+import {createChooseHeroMenu, createStartMenu} from './gameMenu.js'
 
 let projectiles = []
 let weapons = []
@@ -19,13 +19,7 @@ let walls = [];
 
 const BASE_WIDTH = 800;
 const BASE_HEIGHT = 600;
-const createStartMenu = () => {
-    const startMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, BASE_WIDTH, BASE_HEIGHT);
-    let startButton = new Button(BASE_WIDTH / 2, BASE_HEIGHT / 2, 200, 50, 'START', () => startGame() & startMenu.hide());
-    startMenu.addButton(startButton);
-    
-    return startMenu;
-};
+
 
 createStartMenu().show()
 
@@ -54,6 +48,9 @@ let paused = false;
 // GAME TIMER
 let lastTimestamp = gameTimer.getTime();
 let deltaTime = 0;
+
+// SCALING
+let scale = 1;
 
 pauseGame()
 
@@ -120,7 +117,7 @@ function resize(){
     canvas.width = width;
     canvas.height = height;
 
-    const scale = Math.min(canvas.width / BASE_WIDTH, canvas.height / BASE_HEIGHT);
+    scale = Math.min(canvas.width / BASE_WIDTH, canvas.height / BASE_HEIGHT);
     if(scale < 1){
         ctx.imageSmoothingEnabled = true; // turn it on for low res screens
     }else{
