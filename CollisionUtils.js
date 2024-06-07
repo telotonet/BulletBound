@@ -1,7 +1,7 @@
 import {deltaTime } from '/main.js';
 import { Collider } from './Collider.js';
 
-export default class CollisionUtils {
+class CollisionUtils {
     static rigidBody(movableObj, rigidObj, smoothness = 1) {
         const colliderA = movableObj.collider;
         const colliderB = rigidObj.collider;
@@ -52,3 +52,5 @@ export default class CollisionUtils {
         }
     }
 }
+
+export {CollisionUtils}

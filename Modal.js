@@ -14,6 +14,12 @@ class Modal{
     get top() {
         return this.y - this.height / 2;
     }
+    show(){
+        modals.push(this)
+    }
+    hide(){
+        this.destroy()
+    }
 }
 
 class Menu extends Modal{
@@ -21,12 +27,7 @@ class Menu extends Modal{
         super(x, y, width, height)
         this.buttons = []
     }
-    show(){
-        modals.push(this)
-    }
-    hide(){
-        this.destroy()
-    }
+
     addButton(btn){
         this.buttons.push(btn)
     }
