@@ -4,7 +4,6 @@ import { Menu, Button, initializePauseMenu } from './Modal.js'
 import { Canvas, Camera } from './Canvas.js'
 import { GameMap, GameTimer } from './GameMap.js';
 import { Renderer, Updater } from './Renderer.js'
-import { Weapon, RangedWeapon } from './Weapon.js'
 import { Player, Entity } from './Entity.js'
 import { Wall } from './Wall.js'
 import { BaseDebugger } from './GameObject.js';
@@ -13,7 +12,6 @@ import {createChooseHeroMenu, createStartMenu, createTimerModal} from './gameMen
 
 
 let projectiles = []
-let weapons = []
 let modals = []
 let entities = []
 let walls = [];
@@ -58,19 +56,14 @@ pauseGame()
 function startGame(){
     resumeGame()
     createTimerModal()
-    const createPlayerProjectile = (x, y, speed, angle, damage, owner) => {
-        return new PoisonProjectile(x, y, speed, angle, 15, 15, damage, 'green', owner); // Произвольные параметры
-    };
-    const playerWeapon = new RangedWeapon('Custom Gun', 10, 15, 100, createPlayerProjectile);
 
-    const enemyWeapon = new RangedWeapon('Custom Gun', 15, 10, 100, createPlayerProjectile);
 
-    const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100, playerWeapon);
-    new Entity(500, 400, 0, 52, 52, 5, 100, enemyWeapon)
-    new Entity(600, 400, 0, 52, 52, 5, 100, enemyWeapon)
-    new Entity(600, 300, 0, 52, 52, 5, 100, enemyWeapon)
-    new Entity(500, 300, 0, 52, 52, 5, 100, enemyWeapon)
-    new Entity(550, 350, 0, 52, 52, 5, 100, enemyWeapon)
+    const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
+    new Entity(500, 400, 0, 52, 52, 5, 100)
+    new Entity(600, 400, 0, 52, 52, 5, 100)
+    new Entity(600, 300, 0, 52, 52, 5, 100)
+    new Entity(500, 300, 0, 52, 52, 5, 100)
+    new Entity(550, 350, 0, 52, 52, 5, 100)
 
     const levelGrid = [
         [1, 1, 1, 1, 1,,, 1],
@@ -228,4 +221,4 @@ document.addEventListener('keydown', (event) => {
 
 gameLoop();
 
-export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, collisionManager, weapons, entities, walls, ctx, gameTimer, projectiles, gameMap, startGame}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, collisionManager, entities, walls, ctx, gameTimer, projectiles, gameMap, startGame}

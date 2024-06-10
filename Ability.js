@@ -6,7 +6,7 @@ class Ability {
         this.owner = owner
         this.cooldown = cooldown
         this.name = name
-        this.lastUsedTime = 0
+        this.lastUsedTime = -10000
     }
 
     canUse() {
@@ -15,7 +15,6 @@ class Ability {
     }
 
     use(x, y, angle, modifiers = null) {
-        console.log(this.canUse())
         if (this.canUse()) {
             this.lastUsedTime = gameTimer.getTime();
             this.activate(this.owner, x, y, angle, modifiers);

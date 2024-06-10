@@ -1,4 +1,4 @@
-import { weapons, gameTimer, entities } from "./main.js";
+import { weapons, gameTimer, entities } from "../main.js";
 
 class Weapon {
     constructor(name, damage, speed, cooldown) {

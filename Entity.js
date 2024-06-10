@@ -8,12 +8,10 @@ import { Fireball, Heal } from './Ability.js'
 
 
 class Entity extends GameObject {
-    constructor(x, y, angle, width, height, speed, health, weapon) {
+    constructor(x, y, angle, width, height, speed, health) {
         super(x, y, width, height, angle, 0, 0);
         this.speed = speed;
         this.angle = angle * Math.PI / 180;
-        this.weapon = weapon;
-        this.weapon.owner = this
         this.health = new Health(this, health);
         this.visualEffects = new VisualEffectManager();
         this.statusEffects = new StatusEffectManager();
@@ -46,18 +44,12 @@ class Entity extends GameObject {
         }
     }
 
-    attack() {
-        const entitySize = Math.max(this.width, this.height)
-        this.weapon.attack(this.x, this.y, this.angle, entitySize);
-    }
-
     spawn(){
         entities.push(this)
     }
 
     die() {
         this.visualEffects.clearEffects();
-        this.weapon.destroy()
         const deathEffect = new DeathEffect(gameMap, 32, 32, 300, this.x, this.y)
         gameMap.visualEffects.addEffect(deathEffect)
         this.destroy();
@@ -78,14 +70,14 @@ class Entity extends GameObject {
 }
 
 class Player extends Entity {
-    constructor(x, y, angle, width, height, speed, health, weapon) {
-        super(x, y, angle, width, height, speed, health, weapon);
+    constructor(x, y, angle, width, height, speed, health) {
+        super(x, y, angle, width, height, speed, health);
         this.mouseX = x;
         this.mouseY = y;
         this.keysPressed = {};
         this.initControls();
         this.abilities = {
-            q: new Fireball(this, 1000, 'Fire Ball'),
+            q: new Fireball(this, 500, 'Fire Ball'),
             e: new Heal(this, 5000, 'Heal'),
             // Другие способности мага
         };
