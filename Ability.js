@@ -1,5 +1,5 @@
 import { gameTimer } from "./main.js"
-import { Projectile } from "./Projectile.js"
+import { Projectile, PoisonProjectile, LightningProjectile } from "./Projectile.js"
 
 class Ability {
     constructor(owner, cooldown, name) {
@@ -28,7 +28,7 @@ class Ability {
 
 class Fireball extends Ability {
     activate(owner, x, y, angle) {
-        const fireball = new Projectile(x, y, 10, angle, 10, 10, 20, 'orange', owner);
+        const fireball = new PoisonProjectile(x, y, 10, angle, 10, 10, 20, 'orange', owner);
     }
 }
 
@@ -38,5 +38,10 @@ class Heal extends Ability {
     }
 }
 
+class Lightning extends Ability{
+    activate(owner, x, y, angle, modifiers) {
+        new LightningProjectile(x, y, 10, angle, 10, 10, 10, 'blue', owner, 4)
+    }
+}
 
-export { Ability, Heal, Fireball }
+export { Ability, Heal, Fireball, Lightning }

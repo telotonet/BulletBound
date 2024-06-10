@@ -18,7 +18,11 @@ class Health {
             this.health += amount;
         }
         if (amount < 0) {
-            const damageEffect = new DamageNumberEffect(this.entity, 0, 0, amount, 1000, 'black');
+            const damageEffect = new DamageNumberEffect(this.entity, 0, 0, amount, 1000, 'black', null, 8);
+            this.entity.visualEffects.addEffect(damageEffect);
+        }
+        if (amount > 0) {
+            const damageEffect = new DamageNumberEffect(this.entity, 0, 0, amount, 1000, 'lightgreen', null, 8);
             this.entity.visualEffects.addEffect(damageEffect);
         }
         if (this.health > this.maxHealth) {

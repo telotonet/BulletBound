@@ -1,4 +1,4 @@
-import { Menu, Button, initializePauseMenu } from './Modal.js'
+import { Menu, Button, initializePauseMenu, StatusEffectfMenu } from './Modal.js'
 import { BASE_HEIGHT, BASE_WIDTH, startGame, gameTimer } from './main.js';
 
 const createStartMenu = () => {
@@ -25,5 +25,28 @@ const createTimerModal = () => {
     const timerModal = new Menu(BASE_WIDTH * 0.9, BASE_HEIGHT * 0.05, BASE_WIDTH*0.15, BASE_HEIGHT*0.025, '');
     timerModal.show()
 }
+const createStatusEffectfMenu = () => {
+    const statusEffectMenu = new StatusEffectfMenu(BASE_WIDTH*0.125, BASE_HEIGHT*0.075, BASE_WIDTH*0.2, BASE_HEIGHT*0.1, 'buffs')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.addIcon('')
+    statusEffectMenu.show()
+}
 
-export {createChooseHeroMenu, createStartMenu, createTimerModal}
+export {createChooseHeroMenu, createStartMenu, createTimerModal, createStatusEffectfMenu}

@@ -4,7 +4,7 @@ import { VisualEffectManager, DeathEffect } from "./VisualEffect.js";
 import { entities, canvas, camera, gameMap } from './main.js'
 import { CollisionUtils } from './CollisionUtils.js'
 import { StatusEffectManager } from './StatusEffect.js'
-import { Fireball, Heal } from './Ability.js'
+import { Fireball, Heal, Lightning } from './Ability.js'
 
 
 class Entity extends GameObject {
@@ -78,7 +78,7 @@ class Player extends Entity {
         this.initControls();
         this.abilities = {
             q: new Fireball(this, 500, 'Fire Ball'),
-            e: new Heal(this, 5000, 'Heal'),
+            e: new Lightning(this, 5000, 'Lightning'),
             // Другие способности мага
         };
 

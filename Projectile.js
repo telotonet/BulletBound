@@ -1,4 +1,4 @@
-import { projectiles } from "./main.js";
+import { projectiles, entities } from "./main.js";
 import { GameObject } from "./GameObject.js";
 import { VisualEffectManager } from "./VisualEffect.js";
 import { FireEffect } from "./StatusEffect.js";
@@ -62,5 +62,50 @@ class PoisonProjectile extends Projectile{
     }
 }
 
+class LightningProjectile extends Projectile {
+    constructor(x, y, speed, angle, width, height, damage, color = 'cyan', owner = null, chainCount = 4, hitEntities = []) {
+        super(x, y, speed, angle, width, height, damage, color, owner);
+        this.chainCount = chainCount;
+        this.hitEntities = hitEntities;
+    }
 
-export {Projectile, PoisonProjectile}
+    onEntityEnter(entity) {
+        if (this.owner == entity || this.hitEntities.includes(entity)) return;
+        entity.health.change(-this.damage);
+        this.hitEntities.push(entity);
+
+        if (this.chainCount > 0) {
+            this.chainToNextTarget(entity.x, entity.y);
+        }
+        this.destroy();
+    }
+
+    findNearestEntity(x, y, excludeEntity) {
+        let nearestEntity = null;
+        let minDistance = Infinity;
+        for (const entity of entities) {
+            if (entity !== excludeEntity && entity !== this.owner && !this.hitEntities.includes(entity)) {
+                const distance = Math.hypot(entity.x - x, entity.y - y);
+                if (distance < minDistance && distance <= 100) {
+                    minDistance = distance;
+                    nearestEntity = entity;
+                }
+            }
+        }
+        return nearestEntity;
+    }
+
+    chainToNextTarget(currentX, currentY) {
+        const nextTarget = this.findNearestEntity(currentX, currentY, null);
+        if (!nextTarget) return;
+        const angle = Math.atan2(nextTarget.y - currentY, nextTarget.x - currentX);
+        const lightningProjectile = new LightningProjectile(
+            currentX, currentY, this.speed, angle, this.width, this.height, this.damage/1.5, this.color, this.owner, this.chainCount - 1, this.hitEntities
+        );
+        lightningProjectile.x = nextTarget.x;
+        lightningProjectile.y = nextTarget.y;
+        lightningProjectile.onEntityEnter(nextTarget);
+    }
+}
+
+export {Projectile, PoisonProjectile, LightningProjectile}

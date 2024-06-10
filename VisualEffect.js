@@ -62,6 +62,7 @@ class DamageNumberEffect extends VisualEffect {
         super(owner, width, height, duration, x, y);
         this.value = value;
         this.y = this.owner.y;
+        this.x = this.owner.x
         this.color = color;
         this.speed = 1; // Numbers Y movespeed
         this.font = font

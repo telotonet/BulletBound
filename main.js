@@ -8,7 +8,7 @@ import { Player, Entity } from './Entity.js'
 import { Wall } from './Wall.js'
 import { BaseDebugger } from './GameObject.js';
 import { Projectile, PoisonProjectile } from './Projectile.js'
-import {createChooseHeroMenu, createStartMenu, createTimerModal} from './gameMenu.js'
+import {createChooseHeroMenu, createStartMenu, createTimerModal, createStatusEffectfMenu} from './gameMenu.js'
 
 
 let projectiles = []
@@ -56,7 +56,7 @@ pauseGame()
 function startGame(){
     resumeGame()
     createTimerModal()
-
+    createStatusEffectfMenu()
 
     const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
     new Entity(500, 400, 0, 52, 52, 5, 100)

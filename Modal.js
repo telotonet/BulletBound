@@ -132,6 +132,64 @@ class Button {
     }
 }
 
+class Icon {
+    constructor(x, y, width, height, image) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.image = image;
+    }
+
+    draw(ctx, offsetX, offsetY) {
+        // ctx.drawImage(this.image, offsetX + this.x, offsetY + this.y, this.width, this.height);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(offsetX + this.x, offsetY + this.y, this.width, this.height);
+    }
+}
+
+class StatusEffectfMenu extends Menu {
+    constructor(x, y, width, height, title) {
+        super(x, y, width, height, title);
+        this.icons = [];
+        this.iconSize = 30;
+        this.iconSpacing = 5;
+    }
+
+    get left(){
+        return this.x - this.width/2
+    }
+    get top(){
+        return this.y - this.height/2
+    }
+
+    addIcon(image) {
+        this.icons.push(new Icon(0, 0, this.iconSize, this.iconSize, image));
+        this.repositionIcons();
+    }
+
+    repositionIcons() {
+        const maxIconsPerRow = Math.floor((this.width - this.iconSpacing) / (this.iconSize + this.iconSpacing));
+        this.icons.forEach((icon, index) => {
+            const row = Math.floor(index / maxIconsPerRow);
+            const col = index % maxIconsPerRow;
+            icon.x = col * (this.iconSize + this.iconSpacing) + this.iconSpacing / 2;
+            icon.y = row * (this.iconSize + this.iconSpacing) + this.iconSpacing / 2;
+        });
+    }
+
+    draw(ctx, camera) {
+        // Draw the modal background and border as in the parent class
+        super.draw(ctx, camera);
+
+        // Draw the icons
+        this.icons.forEach(icon => {
+            icon.draw(ctx, this.left, this.top);
+        });
+    }
+
+
+}
 
 
 const createPauseMenu = () => {
@@ -176,4 +234,4 @@ const initMenuControls = () => {
     });
 }
 
-export { Menu, Button, initializePauseMenu };
+export { Menu, Button, StatusEffectfMenu, initializePauseMenu };
