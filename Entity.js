@@ -1,8 +1,11 @@
 import { GameObject } from "./GameObject.js";
 import { Health } from "./Health.js"
-import { VisualEffectStorage, DeathEffect } from "./VisualEffect.js";
+import { VisualEffectManager, DeathEffect } from "./VisualEffect.js";
 import { entities, canvas, camera, gameMap } from './main.js'
 import { CollisionUtils } from './CollisionUtils.js'
+import { StatusEffectManager } from './StatusEffect.js'
+import { Fireball, Heal } from './Ability.js'
+
 
 class Entity extends GameObject {
     constructor(x, y, angle, width, height, speed, health, weapon) {
@@ -12,7 +15,8 @@ class Entity extends GameObject {
         this.weapon = weapon;
         this.weapon.owner = this
         this.health = new Health(this, health);
-        this.visualEffects = new VisualEffectStorage();
+        this.visualEffects = new VisualEffectManager();
+        this.statusEffects = new StatusEffectManager();
         this.spawn()
     }
 
@@ -31,6 +35,7 @@ class Entity extends GameObject {
         this.dx = 0
         this.dy = 0
         this.visualEffects.updateEffects();
+        this.statusEffects.updateEffects();
     }
 
     destroy() {
@@ -79,6 +84,12 @@ class Player extends Entity {
         this.mouseY = y;
         this.keysPressed = {};
         this.initControls();
+        this.abilities = {
+            q: new Fireball(this, 1000, 'Fire Ball'),
+            e: new Heal(this, 5000, 'Heal'),
+            // Другие способности мага
+        };
+
         camera.target = this
     }
     update() {
@@ -116,8 +127,14 @@ class Player extends Entity {
         if (this.keysPressed['d'] && !this.keysPressed['a']) {
             this.dx += speed;
         }
-        if (this.keysPressed['q']) {
-            this.attack();
+        // if (this.keysPressed['q']) {
+        //     this.attack();
+        // }
+        // Handle abilities
+        for (let key in this.abilities) {
+            if (this.keysPressed[key]) {
+                this.abilities[key].use(this.x, this.y, this.angle);
+            }
         }
         if (this.keysPressed['shift']) {
             this.dx *= 2

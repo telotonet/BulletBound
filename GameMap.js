@@ -1,8 +1,8 @@
-import { VisualEffect, VisualEffectStorage, DeathEffect, DamageNumberEffect } from "./VisualEffect.js";
+import { VisualEffect, VisualEffectManager, DeathEffect, DamageNumberEffect } from "./VisualEffect.js";
 
 class GameMap{
     constructor(width, height){
-        this.visualEffects = new VisualEffectStorage()
+        this.visualEffects = new VisualEffectManager()
         this.height = height;
         this.width = width;
     }

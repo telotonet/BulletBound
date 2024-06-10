@@ -1,7 +1,7 @@
-import {GameObject, BaseDebugger} from './GameObject.js'
-import { gameTimer, ctx, camera, deltaTime} from './main.js';
+import { GameObject, BaseDebugger } from './GameObject.js'
+import { gameTimer, ctx, camera, deltaTime } from './main.js';
 
-class VisualEffectStorage {
+class VisualEffectManager {
     constructor() {
         this.effects = []; 
     }
@@ -16,28 +16,23 @@ class VisualEffectStorage {
             this.effects.splice(index, 1);
         }
     }
-
-    getEffects() {
-        return this.effects;
-    }
-
     updateEffects(){
-        this.getEffects().forEach(effect => effect.update());
+        this.effects.forEach(effect => effect.update());
     }
 
     drawEffects(){
-        this.getEffects().forEach(effect => effect.draw(ctx, camera));
+        this.effects.forEach(effect => effect.draw(ctx, camera));
     }
 
     clearEffects() {
-        this.getEffects().forEach(effect => effect.destroy());
+        this.effects.forEach(effect => effect.destroy());
     }
 }
 
 class VisualEffect extends GameObject{
-    constructor(entity, width, height, duration, x , y) {
+    constructor(owner, width, height, duration, x , y) {
         super(x, y, width, height, 0, 0, 0)
-        this.entity = entity;
+        this.owner = owner;
         this.duration = duration;
         this.elapsedTime = 0;
         this.startTime =  gameTimer.getTime();
@@ -58,15 +53,15 @@ class VisualEffect extends GameObject{
 
     destroy() {
         super.destroy()
-        this.entity.visualEffects.removeEffect(this);
+        this.owner.visualEffects.removeEffect(this);
     }
 }
 
 class DamageNumberEffect extends VisualEffect {
-    constructor(entity, width, height, value, duration, color, x, y, font= 'Cooper Black', fontSize=30) {
-        super(entity, width, height, duration, x, y);
+    constructor(owner, width, height, value, duration, color, x, y, font= 'Cooper Black', fontSize=30) {
+        super(owner, width, height, duration, x, y);
         this.value = value;
-        this.y = this.entity.y;
+        this.y = this.owner.y;
         this.color = color;
         this.speed = 1; // Numbers Y movespeed
         this.font = font
@@ -75,9 +70,9 @@ class DamageNumberEffect extends VisualEffect {
     }
 
     onCreate(){
-        const existingEffectIndex = this.entity.visualEffects.getEffects().findIndex(e => e instanceof DamageNumberEffect);
+        const existingEffectIndex = this.owner.visualEffects.effects.findIndex(e => e instanceof DamageNumberEffect);
         if (existingEffectIndex !== -1) {
-            const existingEffect = this.entity.visualEffects.getEffects()[existingEffectIndex];
+            const existingEffect = this.owner.visualEffects.effects[existingEffectIndex];
             existingEffect.destroy()
             this.value += existingEffect.value;
         }
@@ -92,13 +87,13 @@ class DamageNumberEffect extends VisualEffect {
     update(){
         super.update()
         this.y -= (this.elapsedTime / this.duration) * this.speed * deltaTime
-        this.x = this.entity.x
+        this.x = this.owner.x
     }
 }
 
 class DeathEffect extends VisualEffect {
-    constructor(entity, width, height, duration, x, y, colors=['blue', 'lightblue', 'yellow']) {
-        super(entity, width, height, duration, x, y);
+    constructor(owner, width, height, duration, x, y, colors=['blue', 'lightblue', 'yellow']) {
+        super(owner, width, height, duration, x, y);
         this.maxRadius = width; 
         this.minRadius = width/4; 
         this.growthSpeed = 5;
@@ -144,4 +139,9 @@ class DeathEffect extends VisualEffect {
         this.colorIndex = Math.floor((this.elapsedTime / this.duration) * (this.colors.length - 1));
     }
 }
-export {VisualEffect, VisualEffectStorage, DeathEffect, DamageNumberEffect}
+
+
+
+
+
+export {VisualEffect, VisualEffectManager, DeathEffect, DamageNumberEffect}

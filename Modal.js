@@ -1,4 +1,4 @@
-import { camera, canvas, resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug} from "./main.js"
+import { canvas, resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug } from "./main.js"
 
 class Modal{
     constructor(x, y, width, height){
@@ -62,7 +62,6 @@ class Menu extends Modal{
         this.drawButtons(ctx)
     }
     update(){
-
     }
     destroy(){
         let index = modals.indexOf(this);

@@ -1,13 +1,13 @@
 import {walls} from './main.js'
 import { GameObject } from './GameObject.js';
-import { VisualEffectStorage } from './VisualEffect.js';
+import { VisualEffectManager } from './VisualEffect.js';
 
 class Wall extends GameObject {
     constructor(x, y, width, height, color = 'black') {
         super(x, y, width, height, 0, 0, 0);
         this.width = width;
         this.height = height;
-        this.visualEffects = new VisualEffectStorage();
+        this.visualEffects = new VisualEffectManager();
         this.color = color
         walls.push(this);
     }

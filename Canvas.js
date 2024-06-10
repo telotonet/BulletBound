@@ -1,4 +1,4 @@
-import {VisualEffectStorage} from './VisualEffect.js'
+import {VisualEffectManager} from './VisualEffect.js'
 
 class Camera {
     constructor(ctx, gameMap, target, width, height, smoothness = 0.15) {
@@ -80,7 +80,7 @@ class Canvas {
         this.ctx = ctx;
         this.width = width;
         this.height = height;
-        this.visualEffects = new VisualEffectStorage()
+        this.visualEffects = new VisualEffectManager()
     }
 
     draw(ctx) {

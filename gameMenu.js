@@ -1,5 +1,5 @@
 import { Menu, Button, initializePauseMenu } from './Modal.js'
-import { BASE_HEIGHT, BASE_WIDTH } from './main.js';
+import { BASE_HEIGHT, BASE_WIDTH, startGame, gameTimer } from './main.js';
 
 const createStartMenu = () => {
     const startMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, BASE_WIDTH, BASE_HEIGHT, 'Bulletbound');
@@ -9,17 +9,21 @@ const createStartMenu = () => {
 };
 const createChooseHeroMenu = () => {
     const startMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, BASE_WIDTH, BASE_HEIGHT, 'Choose your hero');
-    let warrior = new Button(BASE_WIDTH * 0.2, BASE_HEIGHT / 2, 150, 150, 'warrior', () => console.log('yep'));
-    let ranger = new Button(BASE_WIDTH * 0.4, BASE_HEIGHT / 2, 150, 150, 'ranger', () => console.log('yep'));
-    let mage = new Button(BASE_WIDTH * 0.6, BASE_HEIGHT / 2, 150, 150, 'mage', () => console.log('yep'));
-    let rogue = new Button(BASE_WIDTH * 0.8, BASE_HEIGHT / 2, 150, 150, 'rogue', () => console.log('yep'));
+    let warrior = new Button(BASE_WIDTH * 0.2, BASE_HEIGHT / 2, 123, 123, 'warrior', () => startGame() & startMenu.hide());
+    let ranger = new Button(BASE_WIDTH * 0.4, BASE_HEIGHT / 2, 123, 123, 'ranger', () => startGame() & startMenu.hide());
+    let mage = new Button(BASE_WIDTH * 0.6, BASE_HEIGHT / 2, 123, 123, 'mage', () => startGame() & startMenu.hide());
+    let rogue = new Button(BASE_WIDTH * 0.8, BASE_HEIGHT / 2, 123, 123, 'rogue', () => startGame() & startMenu.hide());
 
     startMenu.addButton(warrior);
     startMenu.addButton(ranger);
     startMenu.addButton(mage);
     startMenu.addButton(rogue);
-    
+
     return startMenu;
 };
+const createTimerModal = () => {
+    const timerModal = new Menu(BASE_WIDTH * 0.9, BASE_HEIGHT * 0.05, BASE_WIDTH*0.15, BASE_HEIGHT*0.025, '');
+    timerModal.show()
+}
 
-export {createChooseHeroMenu, createStartMenu}
+export {createChooseHeroMenu, createStartMenu, createTimerModal}
