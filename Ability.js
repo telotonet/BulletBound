@@ -13,7 +13,9 @@ class Ability {
         const currentTime = gameTimer.getTime();
         return (currentTime - this.lastUsedTime) >= this.cooldown;
     }
-
+    getCooldownProgress() {
+        return Math.min((gameTimer.getTime() - this.lastUsedTime) / this.cooldown, 1);
+    }
     use(x, y, angle, modifiers = null) {
         if (this.canUse()) {
             this.lastUsedTime = gameTimer.getTime();

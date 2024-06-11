@@ -1,14 +1,11 @@
-import { CollisionUtils } from './CollisionUtils.js';
 import { Collider, CollisionHandler, CollisionManager } from './Collider.js'
-import { Menu, Button, initializePauseMenu } from './Modal.js'
 import { Canvas, Camera } from './Canvas.js'
 import { GameMap, GameTimer } from './GameMap.js';
 import { Renderer, Updater } from './Renderer.js'
 import { Player, Entity } from './Entity.js'
 import { Wall } from './Wall.js'
 import { BaseDebugger } from './GameObject.js';
-import { Projectile, PoisonProjectile } from './Projectile.js'
-import {createChooseHeroMenu, createStartMenu, createTimerModal, createStatusEffectfMenu} from './gameMenu.js'
+import {createStartMenu, createTimerModal, initializePauseMenu} from './gameMenu.js'
 
 
 let projectiles = []
@@ -56,9 +53,9 @@ pauseGame()
 function startGame(){
     resumeGame()
     createTimerModal()
-    createStatusEffectfMenu()
+    // createStatusEffectfMenu()
 
-    const player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
+    new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
     new Entity(500, 400, 0, 52, 52, 5, 100)
     new Entity(600, 400, 0, 52, 52, 5, 100)
     new Entity(600, 300, 0, 52, 52, 5, 100)

@@ -5,6 +5,7 @@ import { entities, canvas, camera, gameMap } from './main.js'
 import { CollisionUtils } from './CollisionUtils.js'
 import { StatusEffectManager } from './StatusEffect.js'
 import { Fireball, Heal, Lightning } from './Ability.js'
+import { createSpellMenu } from "./gameMenu.js";
 
 
 class Entity extends GameObject {
@@ -76,13 +77,27 @@ class Player extends Entity {
         this.mouseY = y;
         this.keysPressed = {};
         this.initControls();
+
         this.abilities = {
-            q: new Fireball(this, 500, 'Fire Ball'),
-            e: new Lightning(this, 5000, 'Lightning'),
-            // Другие способности мага
+            fireball: new Fireball(this, 500, 'Fireball'),
+            lightning: new Lightning(this, 5000, 'Lightning'),
+            heal1: new Heal(this, 2000, 'Heal'),
+            heal2: new Heal(this, 2000, 'Heal'),
         };
 
-        camera.target = this
+        this.abilityBindings = {
+            q: this.abilities.fireball,
+            e: this.abilities.lightning,
+            r: this.abilities.heal1,
+            f: this.abilities.heal2,
+        };
+        console.log(this.abilityBindings.q)
+        this.iconMenu = createSpellMenu(this.abilityBindings);
+        camera.target = this;
+    }
+    draw(ctx){
+        super.draw(ctx)
+        this.iconMenu.draw(ctx);
     }
     update() {
         super.update();
@@ -123,9 +138,9 @@ class Player extends Entity {
         //     this.attack();
         // }
         // Handle abilities
-        for (let key in this.abilities) {
+        for (let key in this.abilityBindings) {
             if (this.keysPressed[key]) {
-                this.abilities[key].use(this.x, this.y, this.angle);
+                this.abilityBindings[key].use(this.x, this.y, this.angle);
             }
         }
         if (this.keysPressed['shift']) {

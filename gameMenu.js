@@ -1,5 +1,5 @@
-import { Menu, Button, initializePauseMenu, StatusEffectfMenu } from './Modal.js'
-import { BASE_HEIGHT, BASE_WIDTH, startGame, gameTimer } from './main.js';
+import { Menu, Button, GridMenu } from './Modal.js'
+import { BASE_HEIGHT, BASE_WIDTH, startGame, modals, canvas } from './main.js';
 
 const createStartMenu = () => {
     const startMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, BASE_WIDTH, BASE_HEIGHT, 'Bulletbound');
@@ -25,28 +25,53 @@ const createTimerModal = () => {
     const timerModal = new Menu(BASE_WIDTH * 0.9, BASE_HEIGHT * 0.05, BASE_WIDTH*0.15, BASE_HEIGHT*0.025, '');
     timerModal.show()
 }
-const createStatusEffectfMenu = () => {
-    const statusEffectMenu = new StatusEffectfMenu(BASE_WIDTH*0.125, BASE_HEIGHT*0.075, BASE_WIDTH*0.2, BASE_HEIGHT*0.1, 'buffs')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.addIcon('')
-    statusEffectMenu.show()
+const createPauseMenu = () => {
+    const pauseMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, 300, 400);
+    let continueButton = new Button(150, 80, 200, 50, 'CONTINUE', () => resumeGame() & pauseMenu.hide());
+    let backButton = new Button(150, 350, 200, 50, 'BACK', () => resumeGame() & pauseMenu.hide());
+    let debugButton = new Button(150, 150, 200, 50, 'DEBUG', () => switchDebug() & resumeGame() & pauseMenu.hide());
+    let resetButton = new Button(150, 220, 200, 50, 'RESET', () => console.log('you gay'))
+    pauseMenu.addButton(continueButton);
+    pauseMenu.addButton(backButton);
+    pauseMenu.addButton(debugButton);
+    pauseMenu.addButton(resetButton);
+    
+    return pauseMenu;
+};
+const initializePauseMenu = () => {
+    initMenuControls()
+    const pauseMenu = createPauseMenu();
+    return pauseMenu
+};
+const initMenuControls = () => {
+    document.addEventListener('mousemove', (event) => {
+        const mouseX = event.clientX - canvas.getBoundingClientRect().left;
+        const mouseY = event.clientY - canvas.getBoundingClientRect().top;
+        modals.forEach(modal => {
+            modal.buttons.forEach(btn => {
+                btn.onMouseMove(mouseX, mouseY, modal.left, modal.top);
+            });
+        });
+    });
+    
+    document.addEventListener('click', (event) => {
+        const mouseX = event.clientX - canvas.getBoundingClientRect().left;
+        const mouseY = event.clientY - canvas.getBoundingClientRect().top;
+        modals.forEach(modal => {
+            modal.buttons.forEach(btn => {
+                btn.onClick(mouseX, mouseY, modal.left, modal.top);
+            });
+        });
+    });
+};
+const createSpellMenu = (abilities, size=30, spacing=5) => {
+    const spellMenu = new GridMenu(BASE_WIDTH*0.05, BASE_HEIGHT*0.9, BASE_WIDTH*0.07, BASE_HEIGHT*0.3, '', size, spacing)
+    for (let key in abilities) {
+        const ability = abilities[key];
+        spellMenu.addIcon(ability);
+    }
+    spellMenu.show()
+    return spellMenu
 }
 
-export {createChooseHeroMenu, createStartMenu, createTimerModal, createStatusEffectfMenu}
+export {createChooseHeroMenu, createStartMenu, createTimerModal, createSpellMenu, initializePauseMenu}

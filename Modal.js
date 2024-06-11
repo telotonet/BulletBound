@@ -1,4 +1,4 @@
-import { canvas, resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug } from "./main.js"
+import { resumeGame, modals, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, gameTimer } from "./main.js"
 
 class Modal{
     constructor(x, y, width, height){
@@ -133,38 +133,53 @@ class Button {
 }
 
 class Icon {
-    constructor(x, y, width, height, image) {
+    constructor(x, y, width, height, image, ability) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.image = image;
+        this.ability = ability;
     }
 
     draw(ctx, offsetX, offsetY) {
         // ctx.drawImage(this.image, offsetX + this.x, offsetY + this.y, this.width, this.height);
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = 'lightblue';
         ctx.fillRect(offsetX + this.x, offsetY + this.y, this.width, this.height);
+
+        // Рисуем кулдаун
+        const progress = this.ability.getCooldownProgress();
+        
+        if (progress < 1) {
+            const cooldownHeight = this.height * progress; // Изменено на высоту кулдауна снизу вверх
+            const cooldownY = offsetY + this.y + (this.height - cooldownHeight); // Коррекция координаты Y
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(offsetX + this.x, cooldownY, this.width, cooldownHeight); // Изменено на cooldownY и cooldownHeight
+        }
     }
+    
 }
 
-class StatusEffectfMenu extends Menu {
-    constructor(x, y, width, height, title) {
+
+class GridMenu extends Menu {
+    constructor(x, y, width, height, title, iconSize = 30, iconSpacing = 5) {
         super(x, y, width, height, title);
         this.icons = [];
-        this.iconSize = 30;
-        this.iconSpacing = 5;
+        this.iconSize = iconSize;
+        this.iconSpacing = iconSpacing;
     }
 
-    get left(){
-        return this.x - this.width/2
-    }
-    get top(){
-        return this.y - this.height/2
+    get left() {
+        return this.x - this.width / 2;
     }
 
-    addIcon(image) {
-        this.icons.push(new Icon(0, 0, this.iconSize, this.iconSize, image));
+    get top() {
+        return this.y - this.height / 2;
+    }
+
+    addIcon(ability) {
+        const icon = new Icon(0, 0, this.iconSize, this.iconSize, ability.image, ability);
+        this.icons.push(icon);
         this.repositionIcons();
     }
 
@@ -178,60 +193,13 @@ class StatusEffectfMenu extends Menu {
         });
     }
 
-    draw(ctx, camera) {
-        // Draw the modal background and border as in the parent class
-        super.draw(ctx, camera);
-
-        // Draw the icons
+    draw(ctx) {
         this.icons.forEach(icon => {
             icon.draw(ctx, this.left, this.top);
         });
     }
-
-
 }
 
 
-const createPauseMenu = () => {
-    const pauseMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, 300, 400);
-    let continueButton = new Button(150, 80, 200, 50, 'CONTINUE', () => resumeGame() & pauseMenu.hide());
-    let backButton = new Button(150, 350, 200, 50, 'BACK', () => resumeGame() & pauseMenu.hide());
-    let debugButton = new Button(150, 150, 200, 50, 'DEBUG', () => switchDebug() & resumeGame() & pauseMenu.hide());
-    let resetButton = new Button(150, 220, 200, 50, 'RESET', () => console.log('you gay'))
-    pauseMenu.addButton(continueButton);
-    pauseMenu.addButton(backButton);
-    pauseMenu.addButton(debugButton);
-    pauseMenu.addButton(resetButton);
-    
-    return pauseMenu;
-};
 
-const initializePauseMenu = () => {
-    initMenuControls()
-    const pauseMenu = createPauseMenu();
-    return pauseMenu
-};
-
-const initMenuControls = () => {
-    document.addEventListener('mousemove', (event) => {
-        const mouseX = event.clientX - canvas.getBoundingClientRect().left;
-        const mouseY = event.clientY - canvas.getBoundingClientRect().top;
-        modals.forEach(modal => {
-            modal.buttons.forEach(btn => {
-                btn.onMouseMove(mouseX, mouseY, modal.left, modal.top);
-            });
-        });
-    });
-    
-    document.addEventListener('click', (event) => {
-        const mouseX = event.clientX - canvas.getBoundingClientRect().left;
-        const mouseY = event.clientY - canvas.getBoundingClientRect().top;
-        modals.forEach(modal => {
-            modal.buttons.forEach(btn => {
-                btn.onClick(mouseX, mouseY, modal.left, modal.top);
-            });
-        });
-    });
-}
-
-export { Menu, Button, StatusEffectfMenu, initializePauseMenu };
+export { Menu, Button, GridMenu };
