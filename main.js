@@ -47,7 +47,7 @@ let deltaTime = 0;
 
 // SCALING
 let scale = 1;
-
+let player;
 pauseGame()
 
 function startGame(){
@@ -55,12 +55,12 @@ function startGame(){
     createTimerModal()
     // createStatusEffectfMenu()
 
-    new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
+    player = new Player(canvas.width / 2, canvas.height / 2, 0, 45, 45, 5, 100);
     new Entity(500, 400, 0, 52, 52, 5, 100)
-    new Entity(600, 400, 0, 52, 52, 5, 100)
-    new Entity(600, 300, 0, 52, 52, 5, 100)
-    new Entity(500, 300, 0, 52, 52, 5, 100)
-    new Entity(550, 350, 0, 52, 52, 5, 100)
+    // new Entity(600, 400, 0, 52, 52, 5, 100)
+    // new Entity(600, 300, 0, 52, 52, 5, 100)
+    // new Entity(500, 300, 0, 52, 52, 5, 100)
+    // new Entity(550, 350, 0, 52, 52, 5, 100)
 
     const levelGrid = [
         [1, 1, 1, 1, 1,,, 1],
@@ -218,4 +218,4 @@ document.addEventListener('keydown', (event) => {
 
 gameLoop();
 
-export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, collisionManager, entities, walls, ctx, gameTimer, projectiles, gameMap, startGame}
+export {Collider, deltaTime, pauseGame, resumeGame, modals, camera, updater, BASE_WIDTH, BASE_HEIGHT, switchDebug, canvas, collisionManager, entities, walls, ctx, gameTimer, projectiles, gameMap, startGame, player}

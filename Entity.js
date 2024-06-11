@@ -1,7 +1,7 @@
 import { GameObject } from "./GameObject.js";
 import { Health } from "./Health.js"
 import { VisualEffectManager, DeathEffect } from "./VisualEffect.js";
-import { entities, canvas, camera, gameMap } from './main.js'
+import { entities, canvas, camera, gameMap, player } from './main.js'
 import { CollisionUtils } from './CollisionUtils.js'
 import { StatusEffectManager } from './StatusEffect.js'
 import { Fireball, Heal, Lightning } from './Ability.js'
@@ -17,6 +17,9 @@ class Entity extends GameObject {
         this.visualEffects = new VisualEffectManager();
         this.statusEffects = new StatusEffectManager();
         this.spawn()
+        this.abilities = {
+            fireball: new Fireball(this, 1000, 'Fireball'),
+        };
     }
 
     draw(ctx, camera) {
@@ -30,11 +33,21 @@ class Entity extends GameObject {
     }
 
     update() {
-        super.update()
-        this.dx = 0
-        this.dy = 0
+        super.update();
+        this.dx = 0;
+        this.dy = 0;
+        this.abilities.fireball.use(this.x, this.y, this.angle)
+        // Поворачиваем entity лицом к игроку
+        this.moveToPlayer()
         this.visualEffects.updateEffects();
         this.statusEffects.updateEffects();
+    }
+    moveToPlayer(){
+        const targetX = player.x + player.dx * (Math.abs(player.x - this.x) / this.speed);
+        const targetY = player.y + player.dy * (Math.abs(player.y - this.y) / this.speed);
+        const deltaX = targetX - this.x;
+        const deltaY = targetY - this.y;
+        this.angle = Math.atan2(deltaY, deltaX);
     }
 
     destroy() {
@@ -57,10 +70,6 @@ class Entity extends GameObject {
     }
 
     // Handle Collision with {other} objects
-    onProjectileEnter(projectile){
-        if (projectile.owner == this){return} 
-        this.health.change(-projectile.damage)
-    }
 
     onCollisionWithWall(wall) {
         CollisionUtils.rigidBody(this, wall)
@@ -81,17 +90,15 @@ class Player extends Entity {
         this.abilities = {
             fireball: new Fireball(this, 500, 'Fireball'),
             lightning: new Lightning(this, 5000, 'Lightning'),
-            heal1: new Heal(this, 2000, 'Heal'),
-            heal2: new Heal(this, 2000, 'Heal'),
+            heal: new Heal(this, 2000, 'Heal'),
         };
 
         this.abilityBindings = {
             q: this.abilities.fireball,
             e: this.abilities.lightning,
-            r: this.abilities.heal1,
-            f: this.abilities.heal2,
+            r: this.abilities.heal,
+            f: this.abilities.heal,
         };
-        console.log(this.abilityBindings.q)
         this.iconMenu = createSpellMenu(this.abilityBindings);
         camera.target = this;
     }
@@ -103,6 +110,7 @@ class Player extends Entity {
         super.update();
         this.handleInput();
     }
+    moveToPlayer(){}
     initControls() {
         document.addEventListener('keydown', (event) => {
             this.keysPressed[event.key.toLowerCase()] = true;

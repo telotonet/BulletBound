@@ -56,9 +56,13 @@ class PoisonProjectile extends Projectile{
     }
     onEntityEnter(entity){
         super.onEntityEnter(entity)
+        if (this.owner == entity) { return }
         entity.health.change(-this.damage)
         const poisonEffect = new FireEffect(entity, 5200, 3)
         entity.statusEffects.addEffect(poisonEffect)
+    }
+    onPlayerEnter(entity){
+        this.onEntityEnter(entity)
     }
 }
 
