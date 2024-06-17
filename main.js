@@ -1,4 +1,4 @@
-import { Collider, CollisionHandler, CollisionManager } from './Collider.js'
+import { Collider, CollisionHandler, CollisionManager, GridCollider } from './Collider.js'
 import { Canvas, Camera } from './Canvas.js'
 import { GameMap, GameTimer } from './GameMap.js';
 import { Renderer, Updater } from './Renderer.js'
@@ -6,6 +6,7 @@ import { Player, Entity } from './Entity.js'
 import { Wall } from './Wall.js'
 import { BaseDebugger } from './GameObject.js';
 import {createStartMenu, createTimerModal, initializePauseMenu} from './gameMenu.js'
+import { Grid } from './PathFinder.js';
 
 
 let projectiles = []
@@ -22,7 +23,7 @@ createStartMenu().show()
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const canvasObj = new Canvas(ctx, canvas.width, canvas.height);
-const gameMap = new GameMap(Infinity, Infinity)
+const gameMap = new GameMap(1234, 1234)
 const gameTimer = new GameTimer();
 const updater = new Updater()
 const collisionManager = new CollisionManager();
@@ -61,7 +62,6 @@ function startGame(){
     // new Entity(600, 300, 0, 52, 52, 5, 100)
     // new Entity(500, 300, 0, 52, 52, 5, 100)
     // new Entity(550, 350, 0, 52, 52, 5, 100)
-
     const levelGrid = [
         [1, 1, 1, 1, 1,,, 1],
         [1, , , , 1],
@@ -72,7 +72,7 @@ function startGame(){
         [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1],
         [1,,,,,,],
-        [1, 1, 1, 1, 1, , 1],
+        [1, 1, 1, 1, 1,,,,1,,,1],
         [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1],
     ];
@@ -92,6 +92,9 @@ function startGame(){
 
     }
     loadLevel(levelGrid)
+    console.log(walls)
+    gameMap.grid.updateWalkability(walls);
+
 }
 
 window.addEventListener('resize', () => {

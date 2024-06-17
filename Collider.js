@@ -152,9 +152,13 @@ class Collider {
         ctx.stroke();
     }
     update() {
+        this.updatePosition()
+        this.angle = this.owner.angle;
+    }
+
+    updatePosition(){
         this.x = this.owner.x;
         this.y = this.owner.y;
-        this.angle = this.owner.angle;
     }
 
     isCollidingWith(otherCollider) {
@@ -173,8 +177,6 @@ class Collider {
         }
         return true;
     }
-
-
 
     handleCollision(otherCollider) {
         const isColliding = this.isCollidingWith(otherCollider);
@@ -205,6 +207,15 @@ class Collider {
         this.removeSelfFromColliders();
         collisionManager.removeCollider(this);
     }
+}
+
+class GridCollider extends Collider{
+    constructor(owner, x, y, width, height, angle = 0) {
+        super(owner, x, y, width, height, angle)
+    }
+    updatePosition(){}
+    drawDirection(){}
+    handleCollision() {}
 }
 
 class Point {
@@ -367,4 +378,4 @@ class CollisionHandler {
     }
 }
 
-export {Collider, Point, Rectangle, QuadTree, CollisionManager, CollisionHandler};
+export {Collider, Point, Rectangle, QuadTree, CollisionManager, CollisionHandler, GridCollider};

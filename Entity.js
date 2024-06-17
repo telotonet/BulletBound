@@ -7,7 +7,6 @@ import { StatusEffectManager } from './StatusEffect.js'
 import { Fireball, Heal, Lightning } from './Ability.js'
 import { createSpellMenu } from "./gameMenu.js";
 
-
 class Entity extends GameObject {
     constructor(x, y, angle, width, height, speed, health) {
         super(x, y, width, height, angle, 0, 0);
@@ -43,11 +42,19 @@ class Entity extends GameObject {
         this.statusEffects.updateEffects();
     }
     moveToPlayer(){
-        const targetX = player.x + player.dx * (Math.abs(player.x - this.x) / this.speed);
-        const targetY = player.y + player.dy * (Math.abs(player.y - this.y) / this.speed);
-        const deltaX = targetX - this.x;
-        const deltaY = targetY - this.y;
-        this.angle = Math.atan2(deltaY, deltaX);
+        try {
+            const path = gameMap.findPath(this.x, this.y, player.x, player.y);
+            if (path.length > 0) {
+                const nextNode = path[0];
+                const targetX = nextNode.x * gameMap.cellSize + gameMap.cellSize / 2;
+                const targetY = nextNode.y * gameMap.cellSize + gameMap.cellSize / 2;
+                const deltaX = targetX - this.x;
+                const deltaY = targetY - this.y;
+                this.angle = Math.atan2(deltaY, deltaX);
+                this.dx = Math.cos(this.angle) * this.speed;
+                this.dy = Math.sin(this.angle) * this.speed;
+            }
+        } catch {}
     }
 
     destroy() {
