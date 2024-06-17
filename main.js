@@ -40,7 +40,7 @@ let framesThisSecond = 0;
 // PAUSE
 const PAUSE_TOGGLE_COOLDOWN = 1000;
 let requestId;
-let paused = false;
+let paused = true;
 
 // GAME TIMER
 let lastTimestamp = gameTimer.getTime();
@@ -49,7 +49,6 @@ let deltaTime = 0;
 // SCALING
 let scale = 1;
 let player;
-pauseGame()
 
 function startGame(){
     resumeGame()
