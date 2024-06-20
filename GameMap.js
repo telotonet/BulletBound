@@ -1,12 +1,11 @@
 import { VisualEffect, VisualEffectManager, DeathEffect, DamageNumberEffect } from "./VisualEffect.js";
-import { AStar } from "./PathFinder.js";
+import { AStar } from "./trash/Pathfinder.js";
 
 class GameMap {
     constructor(width, height, cellSize=50) {
         this.visualEffects = new VisualEffectManager();
         this.height = height;
         this.width = width;
-        this.cellSize = cellSize;
     }
 
     update() {

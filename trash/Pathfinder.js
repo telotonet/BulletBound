@@ -1,4 +1,4 @@
-import { GridCollider } from "./Collider.js";
+import { GridCollider } from "../Collider.js";
 
 class Node {
     constructor(x, y, walkable = true) {

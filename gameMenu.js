@@ -1,5 +1,5 @@
 import { Menu, Button, GridMenu } from './Modal.js'
-import { BASE_HEIGHT, BASE_WIDTH, startGame, modals, canvas } from './main.js';
+import { BASE_HEIGHT, BASE_WIDTH, startGame, modals, canvas, switchDebug, resumeGame } from './main.js';
 
 const createStartMenu = () => {
     const startMenu = new Menu(BASE_WIDTH / 2, BASE_HEIGHT / 2, BASE_WIDTH, BASE_HEIGHT, 'Bulletbound');
