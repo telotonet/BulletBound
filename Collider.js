@@ -153,12 +153,13 @@ class Collider {
     }
     update() {
         this.updatePosition()
-        this.angle = this.owner.angle;
     }
 
     updatePosition(){
         this.x = this.owner.x;
         this.y = this.owner.y;
+        this.angle = this.owner.angle;
+
     }
 
     isCollidingWith(otherCollider) {
@@ -210,10 +211,29 @@ class Collider {
 }
 
 class GridCollider extends Collider{
-    constructor(owner, x, y, width, height, angle = 0) {
-        super(owner, x, y, width, height, angle)
+    constructor(owner, x, y, width, height, offsetX, offsetY) {
+        super(owner, x, y, width, height, 0)
+        this.offsetX = offsetX
+        this.offsetY = offsetY
     }
-    updatePosition(){}
+    updatePosition(){
+        super.updatePosition()
+        this.x += this.offsetX
+        this.y += this.offsetY
+    }
+    draw(ctx) {
+        const vertices = this.getVertices();
+    
+        ctx.strokeStyle = 'wheat';
+        ctx.lineWidth = 0.1;
+    
+        ctx.beginPath();
+        for (let i = 0; i < vertices.length; i++) {
+            ctx.lineTo(vertices[i].x - camera.left, vertices[i].y - camera.top);
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
     drawDirection(){}
     handleCollision() {}
 }

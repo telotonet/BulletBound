@@ -1,63 +1,5 @@
 import { GridCollider } from "./Collider.js";
 
-class Grid {
-    constructor(width, height, cellSize) {
-        this.width = width;
-        this.height = height;
-        this.cellSize = cellSize;
-        this.columns = Math.ceil(width / cellSize);
-        this.rows = Math.ceil(height / cellSize);
-        this.grid = this.createGrid();
-        this.dx = 0
-        this.dy = 0
-    }
-
-    createGrid() {
-        const grid = [];
-        for (let y = 0; y < this.rows; y++) {
-            const row = [];
-            for (let x = 0; x < this.columns; x++) {
-                row.push({ walkable: true });
-            }
-            grid.push(row);
-        }
-        return grid;
-    }
-
-    // Проверка проходимости клетки
-    isWalkable(x, y) {
-        if (x < 0 || x >= this.columns || y < 0 || y >= this.rows) {
-            return false;
-        }
-        return this.grid[y][x].walkable;
-    }
-
-    // Обновление информации о проходимости клеток
-    updateWalkability(walls) {
-        for (let y = 0; y < this.rows; y++) {
-            for (let x = 0; x < this.columns; x++) {
-                this.grid[y][x].walkable = !this.isCellCollidingWithWalls(x, y, walls);
-            }
-        }
-        console.log(this.grid)
-    }
-
-    // Проверка коллизий клетки со стенами
-    isCellCollidingWithWalls(cellX, cellY, walls) {
-        const cellCenterX = cellX * this.cellSize + this.cellSize / 2;
-        const cellCenterY = cellY * this.cellSize + this.cellSize / 2;
-        const cellCollider = new GridCollider(this, cellCenterX, cellCenterY, this.cellSize, this.cellSize);
-
-        for (let wall of walls) {
-            if (cellCollider.isCollidingWith(wall.collider)) {
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-
 class Node {
     constructor(x, y, walkable = true) {
         this.x = x;
@@ -167,4 +109,4 @@ class AStar {
     }
 }
 
-export { AStar, Grid }
+export { AStar }

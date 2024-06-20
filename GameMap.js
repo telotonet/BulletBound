@@ -1,5 +1,5 @@
 import { VisualEffect, VisualEffectManager, DeathEffect, DamageNumberEffect } from "./VisualEffect.js";
-import { AStar, Grid } from "./PathFinder.js";
+import { AStar } from "./PathFinder.js";
 
 class GameMap {
     constructor(width, height, cellSize=50) {
@@ -7,7 +7,6 @@ class GameMap {
         this.height = height;
         this.width = width;
         this.cellSize = cellSize;
-        this.grid = new Grid(width, height, cellSize);
     }
 
     update() {
@@ -18,15 +17,7 @@ class GameMap {
         this.visualEffects.drawEffects();
     }
 
-    findPath(startX, startY, endX, endY) {
-        const aStar = new AStar(this.grid);
-        return aStar.findPath(
-            Math.floor(startX / this.cellSize),
-            Math.floor(startY / this.cellSize),
-            Math.floor(endX / this.cellSize),
-            Math.floor(endY / this.cellSize)
-        );
-    }
+
 }
 
 class GameTimer {

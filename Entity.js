@@ -6,6 +6,7 @@ import { CollisionUtils } from './CollisionUtils.js'
 import { StatusEffectManager } from './StatusEffect.js'
 import { Fireball, Heal, Lightning } from './Ability.js'
 import { createSpellMenu } from "./gameMenu.js";
+import { Aggro } from "./Aggro.js";
 
 class Entity extends GameObject {
     constructor(x, y, angle, width, height, speed, health) {
@@ -107,6 +108,7 @@ class Player extends Entity {
             f: this.abilities.heal,
         };
         this.iconMenu = createSpellMenu(this.abilityBindings);
+        this.aggro = new Aggro(this, 350)
         camera.target = this;
     }
     draw(ctx){
